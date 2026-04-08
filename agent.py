@@ -35,7 +35,7 @@ def run_planning_mode(markdown_text: str, system_prompt: str) -> AssessmentRepor
     You are an AI tasked with evaluating a research paper based on the following master prompt criteria:
     {system_prompt}
     
-    Please break down these questions into logical Task Groups (e.g., 'Sample Size', 'Blinding', 'Intervention').
+    Break down these questions into logical Task Groups (e.g., 'Sample Size', 'Blinding', 'Intervention').
     Generate a complete TaskListArtifact based on the questions provided in the criteria.
     """
     

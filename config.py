@@ -4,10 +4,13 @@ from pydantic_settings import BaseSettings
 
 import keyring
 
-# SERVICE_NAME = "gemini_api_key_prompt_optimazation"
+# SERVICE_NAME = "gemini_api_key_prompt_optimization"
 # ACCOUNT_NAME = "vincent.emanuel.mueller"
 
 # SERVICE_NAME = "gemini_api_key_default_gemini_project"
+# ACCOUNT_NAME = "odonata.vmueller"
+
+# SERVICE_NAME = "gemini_api_key_prompt_optimization"
 # ACCOUNT_NAME = "odonata.vmueller"
 
 def get_api_key(service_name, account_name):
@@ -19,9 +22,10 @@ def get_api_key(service_name, account_name):
         raise ValueError("API key not found in keychain")
 
 class Settings(BaseSettings):
-    service_name: str = "gemini_api_key_default_gemini_project"
+    service_name: str = "gemini_api_key_prompt_optimization"
     account_name: str = "odonata.vmueller"
-    model: str = "gemini-2.5-pro"
+    # model: str = "gemini-3.1-pro-preview"
+    model: str = "gemini-2.5-flash-lite"
     temperature: float = 0.2
 
     gemini_api_key: str = get_api_key(service_name, account_name)

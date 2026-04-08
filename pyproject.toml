@@ -1,0 +1,13 @@
+[project]
+name = "test-private-evaluation-base"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.14"
+dependencies = [
+    "google-genai>=1.70.0",
+    "keyring>=25.7.0",
+    "pydantic>=2.12.5",
+    "pydantic-settings>=2.13.1",
+    "pymupdf4llm>=1.27.2.2",
+]

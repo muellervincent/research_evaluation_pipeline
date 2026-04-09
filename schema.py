@@ -1,4 +1,4 @@
-from typing import List, Optional
+from typing import List, Optional, Any
 from pydantic import BaseModel, Field
 
 class SubTask(BaseModel):
@@ -29,3 +29,23 @@ class AssessmentAnswer(BaseModel):
 
 class AssessmentReportArtifact(BaseModel):
     answers: List[AssessmentAnswer] = Field(..., description="The definitive answers to the task list based on the extracted evidence.")
+
+class EvaluationDetail(BaseModel):
+    question: str
+    expected: str
+    actual: str
+    correct: bool
+
+class EvaluationMetrics(BaseModel):
+    accuracy: float
+    correct: int
+    total: int
+    details: List[EvaluationDetail]
+
+class EvaluationResult(BaseModel):
+    mode: str
+    pdf_stem: str
+    model_name: str
+    metrics: Optional[EvaluationMetrics] = None
+    raw_output: Any = Field(None, description="The raw CSV or JSON Assessment string/dict.")
+

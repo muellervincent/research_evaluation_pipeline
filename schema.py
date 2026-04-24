@@ -24,11 +24,14 @@ class EvidenceArtifact(BaseModel):
 
 class AssessmentAnswer(BaseModel):
     question_number: str = Field(..., description="The ID of the question")
-    answer: bool = Field(..., description="Boolean indicating if the practice was observed (Yes/No)")
+    answer: bool = Field(..., description="Boolean indicating if the practice was observed (True/False)")
     justification: str = Field(..., description="The textual quote or short explanatory text acting as justification.")
 
 class AssessmentReportArtifact(BaseModel):
     answers: List[AssessmentAnswer] = Field(..., description="The definitive answers to the task list based on the extracted evidence.")
+
+class FastAssessmentResult(BaseModel):
+    answers: List[AssessmentAnswer] = Field(..., description="The answers for each question based on the evaluation guidelines.")
 
 class EvaluationDetail(BaseModel):
     question: str

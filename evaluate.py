@@ -26,55 +26,20 @@ def load_expected_answers(expected_csv_path: str, study_number: str) -> Dict[str
                 expected[str(row['prompt_number']).strip()] = str(row['answer']).strip()
     return expected
 
-def evaluate_fast_csv(csv_content: str, expected: Dict[str, str]) -> Dict[str, Any]:
-    correct = 0
-    total = 0
-    details = []
-    
-    if not csv_content.strip():
-        return {"accuracy": 0, "correct": 0, "total": 0, "details": []}
-        
-    try:
-        delim = csv.Sniffer().sniff(csv_content[:1024]).delimiter
-    except csv.Error:
-        delim = ';' if ';' in csv_content[:256] else ','
-        
-    reader = csv.reader(csv_content.splitlines(), delimiter=delim)
-    for row in reader:
-        if len(row) >= 2:
-                q_num = str(row[0]).strip().rstrip('.')
-                ans_str = row[1]
-                ans = normalize_answer(ans_str)
-                exp = expected.get(q_num)
-                
-                if exp is not None and exp != 'NA':
-                    total += 1
-                    is_correct = (ans == exp)
-                    if is_correct:
-                        correct += 1
-                    details.append({
-                        "question": q_num,
-                        "expected": exp,
-                        "actual": ans,
-                        "correct": is_correct
-                    })
-    
-    return {
-        "accuracy": round(correct / total, 4) if total > 0 else 0,
-        "correct": correct,
-        "total": total,
-        "details": details
-    }
-
-def evaluate_planning_json(data: Dict[str, Any], expected: Dict[str, str]) -> Dict[str, Any]:
+def evaluate_report(data: Dict[str, Any], expected: Dict[str, str]) -> Dict[str, Any]:
     correct = 0
     total = 0
     details = []
         
     for answer_obj in data.get('answers', []):
-        q_num = str(answer_obj.get('question_number')).strip()
+        q_num = str(answer_obj.get('question_number')).strip().rstrip('.')
         ans_bool = answer_obj.get('answer')
-        ans = '1' if ans_bool else '0'
+        
+        if isinstance(ans_bool, bool):
+            ans = '1' if ans_bool else '0'
+        else:
+            ans = normalize_answer(ans_bool)
+
         exp = expected.get(q_num)
         
         if exp is not None and exp != 'NA':

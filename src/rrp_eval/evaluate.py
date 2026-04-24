@@ -14,7 +14,11 @@ def normalize_answer(ans_str: str) -> str:
 
 def load_expected_answers(expected_csv_path: str, study_number: str) -> Dict[str, str]:
     expected = {}
-    with open(expected_csv_path, 'r', encoding='utf-8') as f:
+    path = Path(expected_csv_path)
+    if not path.exists():
+        return expected
+        
+    with open(path, 'r', encoding='utf-8') as f:
         reader = csv.DictReader(f, delimiter=';')
         # Handle zero padding
         target_study_num = str(study_number).lstrip('0')
@@ -22,14 +26,20 @@ def load_expected_answers(expected_csv_path: str, study_number: str) -> Dict[str
             target_study_num = '0'
             
         for row in reader:
-            if str(row['study_number']).strip() == target_study_num:
-                expected[str(row['prompt_number']).strip()] = str(row['answer']).strip()
+            if str(row.get('study_number', '')).strip() == target_study_num:
+                expected[str(row.get('prompt_number', '')).strip()] = str(row.get('answer', '')).strip()
     return expected
 
 def evaluate_report(data: Dict[str, Any], expected: Dict[str, str]) -> Dict[str, Any]:
     correct = 0
     total = 0
     details = []
+    
+    # Create a mapping from question_number to justification from raw output
+    justifications = {
+        str(ans_obj.get('question_number')).strip().rstrip('.'): ans_obj.get('justification')
+        for ans_obj in data.get('answers', [])
+    }
         
     for answer_obj in data.get('answers', []):
         q_num = str(answer_obj.get('question_number')).strip().rstrip('.')
@@ -48,10 +58,11 @@ def evaluate_report(data: Dict[str, Any], expected: Dict[str, str]) -> Dict[str,
             if is_correct:
                 correct += 1
             details.append({
-                "question": q_num,
+                "question_number": q_num,
                 "expected": exp,
-                "actual": ans,
-                "correct": is_correct
+                "predicted": ans,
+                "correct": is_correct,
+                "justification": justifications.get(q_num)
             })
             
     return {
@@ -63,15 +74,19 @@ def evaluate_report(data: Dict[str, Any], expected: Dict[str, str]) -> Dict[str,
 
 def compare_results(file1: str, file2: str) -> str:
     """Compares two JSON result files and returns a markdown formatted diff."""
+    from rich.console import Console
+    from rich.table import Table
+
+    console = Console()
+
     with open(file1, 'r', encoding='utf-8') as f1, open(file2, 'r', encoding='utf-8') as f2:
         d1 = json.load(f1)
         d2 = json.load(f2)
     
-    m1 = d1.get("metrics", {})
-    if not m1: m1 = {}
-    m2 = d2.get("metrics", {})
-    if not m2: m2 = {}
+    m1 = d1.get("metrics", {}) or {}
+    m2 = d2.get("metrics", {}) or {}
     
+    # 1. Markdown Report
     report = [f"## Comparison: {Path(file1).name} vs {Path(file2).name}"]
     report.append("| Metric | File 1 | File 2 | Diff |")
     report.append("|---|---|---|---|")
@@ -84,19 +99,31 @@ def compare_results(file1: str, file2: str) -> str:
     corr2 = m2.get('correct', 0)
     report.append(f"| Correct | {corr1} | {corr2} | {corr2 - corr1} |")
     
-    # Detail diff
-    det1 = { d["question"]: d for d in m1.get("details", []) }
-    det2 = { d["question"]: d for d in m2.get("details", []) }
+    det1 = { d["question_number"]: d for d in m1.get("details", []) }
+    det2 = { d["question_number"]: d for d in m2.get("details", []) }
     
     all_qs = sorted(set(det1.keys()).union(det2.keys()))
-    diffs = []
     
+    # 2. Console Visualization (Rich)
+    table = Table(title=f"Comparison: {Path(file1).name} vs {Path(file2).name}")
+    table.add_column("Question", style="cyan")
+    table.add_column(f"File 1 ({d1.get('mode', 'fast')})", style="magenta")
+    table.add_column(f"File 2 ({d2.get('mode', 'planning')})", style="green")
+    table.add_column("Match", justify="center")
+
+    diffs = []
     for q in all_qs:
-        ans1 = det1.get(q, {}).get("actual", "N/A")
-        ans2 = det2.get(q, {}).get("actual", "N/A")
+        ans1 = det1.get(q, {}).get("predicted", "N/A")
+        ans2 = det2.get(q, {}).get("predicted", "N/A")
+        
+        match_symbol = "[bold green]✓[/]" if ans1 == ans2 else "[bold red]✗[/]"
+        table.add_row(f"Q{q}", str(ans1), str(ans2), match_symbol)
+        
         if ans1 != ans2:
             diffs.append(f"- **Q{q}**: File1='{ans1}' vs File2='{ans2}'")
             
+    console.print(table)
+
     if diffs:
         report.append("\n### Diverging Answers\n")
         report.extend(diffs)
@@ -104,4 +131,3 @@ def compare_results(file1: str, file2: str) -> str:
         report.append("\n### No Diverging Answers\n")
         
     return "\n".join(report)
-

@@ -8,12 +8,21 @@ The tool is highly modular, configurable via a CLI (`main.py`), and designed to 
 
 ## Core Architecture
 
-- **`main.py`**: The CLI entry point. It orchestrates the processing of single PDFs or entire directories, sets up logging, initiates the evaluation modes, and invokes the comparison and ground-truth validation routines.
-- **`agent.py`**: The core LLM orchestration layer. It handles interactions with the Google GenAI API, providing functions for PDF multimodal extraction (`process_pdf`), dynamic prompt sanitization (`refine_prompt`), and the execution logic for the evaluation modes (`run_fast_mode` and `run_planning_mode`).
-- **`evaluate.py`**: The scoring and comparison engine. It compares the model's generated JSON assessment against a ground truth CSV (loaded via `load_expected_answers`), calculating accuracy metrics. It also features a routine to generate diff reports between two JSON artifacts.
-- **`schema.py`**: Defines the rigorous Pydantic data models enforcing structured JSON outputs from the LLM, including `TaskListArtifact`, `EvidenceArtifact`, `AssessmentReportArtifact`, and `EvaluationMetrics`.
-- **`config.py`**: Manages environment variables and securely retrieves API keys from the local keychain (via `keyring`), abstracting configuration from the application logic.
-- **`logger.py`**: Implements an aesthetically pleasing, customized CLI logger using `rich`, muting noisy underlying API logs to provide clean, semantic "cognitive step" readouts to the user.
+The project now utilizes a modern `src/rrp_eval/` package structure:
+
+- **`cli.py`**: The Typer CLI entry point (`rrp-eval`). It orchestrates concurrent batch processing of PDFs and implements user-friendly flags.
+- **`agent.py`**: The asynchronous LLM orchestration layer. It handles interactions with the Google GenAI API using `asyncio`, drastically reducing execution time for multiple PDFs.
+- **`evaluate.py`**: The scoring and comparison engine. It calculates accuracy metrics and generates diff reports.
+- **`schema.py`**: Defines the rigorous Pydantic data models enforcing structured JSON outputs. `AssessmentReport` is now the universal output format for both fast and planning modes.
+- **`config.py`**: Manages environment variables and parses `eval_profiles.toml`, allowing seamless switching between different API keys and model configurations.
+- **`logger.py`**: Implements a robust `Loguru` logger with automatic file rotation and visual console output, intelligently muting noisy third-party APIs.
+
+## Configuration Profiles
+
+Manage your API keys securely using the `eval_profiles.toml` file at the root. You can switch profiles via the CLI:
+```bash
+uv run rrp-eval evaluate --target resources/data/papers/ --profile prompt_optimization
+```
 
 ## Execution Pipelines
 

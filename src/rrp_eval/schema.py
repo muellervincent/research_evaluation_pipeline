@@ -25,19 +25,17 @@ class EvidenceArtifact(BaseModel):
 class AssessmentAnswer(BaseModel):
     question_number: str = Field(..., description="The ID of the question")
     answer: bool = Field(..., description="Boolean indicating if the practice was observed (True/False)")
-    justification: str = Field(..., description="The textual quote or short explanatory text acting as justification.")
+    justification: Optional[str] = Field(None, description="The textual quote or short explanatory text acting as justification. Required if running with justification enabled.")
 
-class AssessmentReportArtifact(BaseModel):
-    answers: List[AssessmentAnswer] = Field(..., description="The definitive answers to the task list based on the extracted evidence.")
-
-class FastAssessmentResult(BaseModel):
-    answers: List[AssessmentAnswer] = Field(..., description="The answers for each question based on the evaluation guidelines.")
+class AssessmentReport(BaseModel):
+    answers: List[AssessmentAnswer] = Field(..., description="The definitive answers for each question.")
 
 class EvaluationDetail(BaseModel):
-    question: str
+    question_number: str
     expected: str
-    actual: str
+    predicted: str
     correct: bool
+    justification: Optional[str] = None
 
 class EvaluationMetrics(BaseModel):
     accuracy: float
@@ -50,5 +48,4 @@ class EvaluationResult(BaseModel):
     pdf_stem: str
     model_name: str
     metrics: Optional[EvaluationMetrics] = None
-    raw_output: Any = Field(None, description="The raw CSV or JSON Assessment string/dict.")
-
+    raw_output: Any = Field(None, description="The raw JSON Assessment string/dict.")

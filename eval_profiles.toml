@@ -3,26 +3,29 @@ description = "Unpaid (rate-limited) account using Gemini 2.5 Flash Lite"
 keychain_service = "gemini_api_key_default_gemini_project"
 keychain_account = "odonata.vmueller"
 reasoning_model = "gemini-2.5-flash-lite"
-extraction_model = "gemini-2.5-flash-lite"
-refinement_model = "gemini-2.5-flash-lite"
-temperature = 0.8
+mismatch_analysis_model = "gemini-2.5-flash-lite"
+extraction_model = "gemini-3.1-pro-preview"
+refinement_model = "gemini-3.1-pro-preview"
+temperature = 0.5
 
 [paid_lite]
 description = "Paid account using Gemini 2.5 Flash Lite"
 keychain_service = "gemini_api_key_prompt_optimization"
 keychain_account = "odonata.vmueller"
 reasoning_model = "gemini-2.5-flash-lite"
-extraction_model = "gemini-2.5-flash-lite"
-refinement_model = "gemini-2.5-flash-lite"
-temperature = 0.8
+mismatch_analysis_model = "gemini-2.5-flash-lite"
+extraction_model = "gemini-3.1-pro-preview"
+refinement_model = "gemini-3.1-pro-preview"
+temperature = 0.5
 
 [unpaid_standard]
 description = "Unpaid (rate-limited) account using Gemini 2.5 Flash"
 keychain_service = "gemini_api_key_default_gemini_project"
 keychain_account = "odonata.vmueller"
 reasoning_model = "gemini-2.5-flash"
-extraction_model = "gemini-2.5-flash"
-refinement_model = "gemini-2.5-flash"
+mismatch_analysis_model = "gemini-2.5-flash"
+extraction_model = "gemini-3.1-pro-preview"
+refinement_model = "gemini-3.1-pro-preview"
 temperature = 0.5
 
 [paid_standard]
@@ -30,8 +33,9 @@ description = "Paid account using Gemini 2.5 Flash"
 keychain_service = "gemini_api_key_prompt_optimization"
 keychain_account = "odonata.vmueller"
 reasoning_model = "gemini-2.5-flash"
-extraction_model = "gemini-2.5-flash"
-refinement_model = "gemini-2.5-flash"
+mismatch_analysis_model = "gemini-2.5-flash"
+extraction_model = "gemini-3.1-pro-preview"
+refinement_model = "gemini-3.1-pro-preview"
 temperature = 0.5
 
 [unpaid_sota]
@@ -39,15 +43,17 @@ description = "Unpaid (rate-limited) account using Gemini 3.1 Pro Preview"
 keychain_service = "gemini_api_key_default_gemini_project"
 keychain_account = "odonata.vmueller"
 reasoning_model = "gemini-3.1-pro-preview"
+mismatch_analysis_model = "gemini-3.1-pro-preview"
 extraction_model = "gemini-3.1-pro-preview"
 refinement_model = "gemini-3.1-pro-preview"
-temperature = 0.2
+temperature = 0.5
 
 [paid_sota]
 description = "Paid account using Gemini 3.1 Pro Preview"
 keychain_service = "gemini_api_key_prompt_optimization"
 keychain_account = "odonata.vmueller"
 reasoning_model = "gemini-3.1-pro-preview"
+mismatch_analysis_model = "gemini-3.1-pro-preview"
 extraction_model = "gemini-3.1-pro-preview"
 refinement_model = "gemini-3.1-pro-preview"
-temperature = 0.2
+temperature = 0.5

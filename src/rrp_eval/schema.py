@@ -36,12 +36,24 @@ class EvaluationDetail(BaseModel):
     predicted: str
     correct: bool
     justification: Optional[str] = None
+    mismatch_reason: Optional[str] = None
+    mismatch_category: Optional[str] = None
 
 class EvaluationMetrics(BaseModel):
     accuracy: float
     correct: int
     total: int
     details: List[EvaluationDetail]
+    missing_answers: int = 0
+
+class MismatchAnalysis(BaseModel):
+    question_number: str = Field(..., description="The ID of the question that was incorrectly answered.")
+    category: str = Field(..., description="The category of the mismatch (e.g., 'Model hallucinated/failed', 'Ambiguous Prompt', 'Better than Ground Truth', etc.)")
+    explanation: str = Field(..., description="Detailed explanation of why the prediction and ground truth differ.")
+
+class MismatchReport(BaseModel):
+    analyses: List[MismatchAnalysis] = Field(..., description="List of mismatch analyses for incorrect answers.")
+
 
 class EvaluationResult(BaseModel):
     mode: str

@@ -65,11 +65,14 @@ def evaluate_report(data: Dict[str, Any], expected: Dict[str, str]) -> Dict[str,
                 "justification": justifications.get(q_num)
             })
             
+    missing_answers = max(0, len(expected) - len(data.get('answers', [])))
+    
     return {
         "accuracy": round(correct / total, 4) if total > 0 else 0,
         "correct": correct,
         "total": total,
-        "details": details
+        "details": details,
+        "missing_answers": missing_answers
     }
 
 def compare_results(file1: str, file2: str) -> str:

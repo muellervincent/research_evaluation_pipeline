@@ -14,7 +14,8 @@ class ProfileSettings(BaseSettings):
     keychain_service: str = ""
     keychain_account: str = ""
     reasoning_model: str = "gemini-2.5-flash"
-    extraction_model: str = "gemini-2.5-flash"
+    mismatch_analysis_model: str = "gemini-2.5-flash"
+    extraction_model: str = "gemini-2.5-pro"
     refinement_model: str = "gemini-2.5-flash"
     temperature: float = 0.8
 

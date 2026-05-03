@@ -1,0 +1,11 @@
+["gemini-paid"]
+description = "Paid account for prompt optimization"
+client_type = "gemini"
+keychain_service = "gemini_api_key_prompt_optimization"
+keychain_account = "odonata.vmueller"
+
+["gemini-unpaid"]
+description = "Unpaid (rate-limited) account for default project"
+client_type = "gemini"
+keychain_service = "gemini_api_key_default_gemini_project"
+keychain_account = "odonata.vmueller"

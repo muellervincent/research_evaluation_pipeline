@@ -1,23 +1,11 @@
 # Environments
+.venv/
 .env
-.venv
-env/
-venv/
-ENV/
-env.bak/
-venv.bak/
-
-# Environment configurations
 .env.local
-.env.development.local
-.env.test.local
-.env.production.local
+.env.*.local
 .env.development
 .env.test
 .env.production
-
-# uv
-uv.lock
 
 # Python
 __pycache__/
@@ -42,15 +30,19 @@ share/python-wheels/
 .installed.cfg
 *.egg
 MANIFEST
+.ruff_cache/
+.pytest_cache/
 
-# Output directories
+# Project Specific
 output/
+outputs/
+*.db
+*.db-journal
 
-# OS generated files
-.DS_Store
-.DS_Store?
-._*
-.Spotlight-V100
-.Trashes
-ehthumbs.db
-Thumbs.db
+# Temporary & Local Assets
+resources/tmp/
+resources/convenience/
+*.pdf
+tmp/
+*tmp*
+

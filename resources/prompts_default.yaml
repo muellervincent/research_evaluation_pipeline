@@ -1,0 +1,452 @@
+preprocess:
+  extraction:
+    system: "You are an expert OCR and text extraction system. Your sole objective is to extract text from documents with perfect fidelity to the original content while restructuring it for continuous semantic reading."
+    user: |-
+      ### INSTRUCTIONS ###
+      Extract all text from the provided document.
+
+      ### CONSTRAINTS ###
+      1. Ensure continuous text flow. Sentences interrupted by page transitions must be rejoined.
+      2. Completely remove all structural noise: headers, footers, page numbers, and margin notes.
+      3. For any images, charts, or graphs, generate a plain-text placeholder containing a descriptive summary of the visual data.
+      4. If a figure interrupts a paragraph, move the descriptive placeholder to the end of the paragraph to preserve reading flow.
+      5. Output ONLY the final extracted text in Markdown format.
+
+  refine:
+    standard:
+      system: "You are an expert NLP instruction parser. Your objective is to clean configuration prompts by isolating core analytical requirements and stripping away all formatting or syntax constraints."
+      user: |-
+        ### ORIGINAL INSTRUCTION ###
+        {prompt_master_text}
+
+        ### TASK ###
+        1. Remove all instructions related to output syntax, delimiters, and formatting (e.g., JSON, Markdown, CSV tables, headers, or escape characters).
+        2. Remove meta-instructions regarding model behavior or verification (e.g., "do not use the internet", "verify quotes", "take your time", "analyse carefully").
+        3. Retain all analytical questions, criteria, and conditional instructions.
+
+        ### OUTPUT CONSTRAINTS ###
+        The output must be a JSON object containing the following fields:
+        - "refined_prompt" (str): The cleaned prompt text.
+        - "question_identifiers" (list): A list of objects with "semantic_id" (str) and "original_id" (str or null). Null or empty list if no identifiers.
+
+    semantic:
+      system: "You are an expert NLP instruction parser. Your objective is to clean configuration prompts by isolating core analytical requirements and assigning unique, semantic short IDs to each question."
+      user: |-
+        ### ORIGINAL INSTRUCTION ###
+        {prompt_master_text}
+
+        ### TASK ###
+        1. Remove all instructions related to output syntax, delimiters, and formatting (e.g., JSON, Markdown, CSV tables, headers, or escape characters).
+        2. Retain all analytical questions, criteria, and conditional instructions.
+        3. Assign a unique, semantic short ID (snake_case, e.g. 'q_patient_age') to each question/criterion.
+        4. Prefix each question in the final output with its ID in brackets (e.g., "[q_patient_age] What was the mean age...").
+        5. If the original question has a label or number (e.g., '1.', '7a.'), record it as the 'original_id'. If no label exists, set 'original_id' to null.
+
+        ### OUTPUT CONSTRAINTS ###
+        The output must be a JSON object containing the following fields:
+        - "refined_prompt" (str): The cleaned prompt text with [semantic_id] prefixes.
+        - "question_identifiers" (list): A list of objects mapping "semantic_id" (str) to "original_id" (str or null).
+
+assessment:
+  decomposition:
+    semantic:
+      system: "You are a clinical trial methodology analyst. Your objective is to decompose complex research assessment criteria into logically cohesive, causally-linked task groups."
+      user: |-
+        ### CRITERIA ###
+        {prompt_refined_text}
+
+        ### TASK ###
+        Group the criteria questions into subsets based on underlying methodological constructs (e.g., separating blinding methodologies from statistical power calculations).
+
+        ### CONSTRAINTS ###
+        1. Every question must be assigned to exactly one group.
+        2. Assign a descriptive, analytical name to each group.
+        3. IMPORTANT: If questions are prefixed with an ID in brackets (e.g., [q_id]), you MUST use that exact string as the 'question_id' in the JSON output.
+        4. The output must be a JSON object containing a "groups" list. For each group, provide:
+           - "group_name" (str): A descriptive name for the group.
+           - "tasks" (list of strings): The list of questions belonging to this group.
+
+    structural:
+      system: "You are a document structure parser. Your objective is to group assessment criteria based on their sequential order and explicit section headers."
+      user: |-
+        ### CRITERIA ###
+        {prompt_refined_text}
+
+        ### TASK ###
+        Create Task Groups by splitting the criteria sequentially based on the provided headers or logical flow.
+        The output must be a JSON object containing a "groups" list. For each group, provide:
+        - "group_name" (str): A descriptive name for the group.
+        - "tasks" (list of strings): The list of questions belonging to this group.
+
+  extraction:
+    standard:
+      system: "You are an expert research assistant. Your objective is to perform highly targeted evidence extraction from scientific literature with zero hallucination or inference."
+      user: |-
+        ### TASK GROUP: {group_name} ###
+
+        ### QUESTIONS TO INVESTIGATE ###
+        {questions}
+
+        ### TASK ###
+        Scan the provided document context and extract verbatim quotes that serve as direct evidence to answer the listed questions.
+
+        ### CONSTRAINTS ###
+        1. Use the exact Question ID provided when logging evidence.
+        2. If no direct evidence exists in the text for a question, explicitly state "Evidence missing in source context".
+        3. Do not infer, summarize, or draw conclusions. Extract only what is explicitly written.
+        4. For 'source_context', provide only the relevant paragraph or sentences for the quotes to maintain targetted evidence. Do not include entire sections or unrelated text.
+        5. The output must be a JSON object containing "group_name" (str) and an "evidence_items" (list). For each evidence item, provide:
+           - "question_id" (str): The ID of the question being investigated.
+           - "relevant_quotes" (list of str): Verbatim quotes from the text.
+           - "source_context" (str): The surrounding paragraph for context.
+
+  synthesis:
+    analytical:
+      system: "You are a rigorous scientific assessor. Your objective is to assess research papers based strictly on provided direct evidence, applying a highly conservative, objective analytical framework."
+      user: |-
+        ### MASTER CRITERIA ###
+        {prompt_refined_text}
+
+        ### EXTRACTED EVIDENCE ###
+        {evidence_json}
+
+        ### TASK ###
+        Synthesize a final assessment for each question based exclusively on the provided evidence.
+
+        ### CONSTRAINTS ###
+        1. Assess direct evidence strength. If evidence is weak, ambiguous, or absent, default the assessment to False/Negative.
+        2. Provide a clear reasoning chain in the justification field connecting the exact evidence to your conclusion.
+        3. Never reference or answer other questions within the current justification.
+        4. The output must be a JSON object containing an "answers" list. For each answer, provide:
+           - "question_id" (str): The ID of the question being answered.
+           - "answer" (boolean): True if the criteria is met based on evidence, False otherwise.
+           - "justification" (str): A clear reasoning chain connecting the evidence to the boolean answer.
+
+    concise:
+      system: "You are a strict, objective boolean assessor. Your objective is to classify research methodologies as True or False based exclusively on provided evidence."
+      user: |-
+        ### MASTER CRITERIA ###
+        {prompt_refined_text}
+
+        ### EXTRACTED EVIDENCE ###
+        {evidence_json}
+
+        ### TASK ###
+        Determine whether each criterion is met (True) or not met (False).
+
+        ### CONSTRAINTS ###
+        1. Justifications must be extremely concise (maximum 2 sentences).
+        2. Address only the specific question being answered.
+        3. Default to False if the evidence is missing or ambiguous.
+        4. The output must be a JSON object containing an "answers" list. For each answer, provide:
+           - "question_id" (str): The ID of the question being answered.
+           - "answer" (boolean): True if the criteria is met based on evidence, False otherwise.
+           - "justification" (str): Extremely concise reasoning (1-2 sentences).
+
+    verbose:
+      system: "You are a comprehensive scientific assessor. Your objective is to produce highly detailed, reference-heavy assessments of research methodology based on extracted evidence."
+      user: |-
+        ### MASTER CRITERIA ###
+        {prompt_refined_text}
+
+        ### EXTRACTED EVIDENCE ###
+        {evidence_json}
+
+        ### TASK ###
+        Provide a substantive, deep-dive justification for each assessment answer, explicitly citing the provided evidence.
+
+        ### CONSTRAINTS ###
+        1. Thoroughly explain the logical bridge between the extracted text and your final conclusion.
+        2. If evidence is contradictory, outline the contradiction and err on the side of a conservative assessment (False).
+        3. The output must be a JSON object containing an "answers" list. For each answer, provide:
+           - "question_id" (str): The ID of the question being answered.
+           - "answer" (boolean): True if the criteria is met based on evidence, False otherwise.
+           - "justification" (str): A substantive, deep-dive justification citing the provided evidence.
+
+  fast:
+    analytical:
+      system: "You are a rigorous scientific assessor. Your objective is to assess research papers based strictly on the provided document context, applying a highly conservative, objective analytical framework."
+      user: |-
+        ### MASTER CRITERIA ###
+        {prompt_refined_text}
+
+        ### TASK ###
+        Assess the provided document against the master criteria. For each question, locate the relevant evidence within the text and determine the final assessment.
+
+        ### CONSTRAINTS ###
+        1. Assess evidence strength. If evidence is weak, ambiguous, or absent, default the assessment to False/Negative.
+        2. Provide a clear reasoning chain in the justification field connecting the exact evidence to your conclusion.
+        3. Never reference or answer other questions within the current justification.
+        4. The output must be a JSON object containing an "answers" list. For each answer, provide:
+           - "question_id" (str): The ID of the question being answered.
+           - "answer" (boolean): True if the criteria is met based on evidence, False otherwise.
+           - "justification" (str): A clear reasoning chain connecting the evidence to the boolean answer.
+
+    concise:
+      system: "You are a strict, objective boolean assessor. Your objective is to classify research methodologies as True or False based exclusively on the provided document context."
+      user: |-
+        ### MASTER CRITERIA ###
+        {prompt_refined_text}
+
+        ### TASK ###
+        Determine whether each criterion is met (True) or not met (False) based on the provided document.
+
+        ### CONSTRAINTS ###
+        1. Justifications must be extremely concise (maximum 2 sentences).
+        2. Address only the specific question being answered.
+        3. Default to False if the evidence is missing or ambiguous.
+        4. The output must be a JSON object containing an "answers" list. For each answer, provide:
+           - "question_id" (str): The ID of the question being answered.
+           - "answer" (boolean): True if the criteria is met based on evidence, False otherwise.
+           - "justification" (str): Extremely concise reasoning (1-2 sentences).
+
+    verbose:
+      system: "You are a comprehensive scientific assessor. Your objective is to produce highly detailed, reference-heavy assessments of research methodology based on the provided document context."
+      user: |-
+        ### MASTER CRITERIA ###
+        {prompt_refined_text}
+
+        ### TASK ###
+        Provide a substantive, deep-dive assessment for each criterion based on the provided document.
+
+        ### CONSTRAINTS ###
+        1. Thoroughly explain the logical bridge between the source text and your final conclusion.
+        2. If evidence is contradictory, outline the contradiction and err on the side of a conservative assessment (False).
+        3. The output must be a JSON object containing an "answers" list. For each answer, provide:
+           - "question_id" (str): The ID of the question being answered.
+           - "answer" (boolean): True if the criteria is met based on evidence, False otherwise.
+           - "justification" (str): A substantive, deep-dive justification based on the document.
+
+diagnostic:
+  decomposition:
+    thematic:
+      system: "You are a diagnostic task planner. Your objective is to group model predictions into logical batches for targeted error diagnostic."
+      user: |-
+        ### ORIGINAL CRITERIA ###
+        {prompt_assessment_text}
+
+        ### PREDICTIONS FOR DIAGNOSTIC ###
+        {details_json}
+
+        ### TASK ###
+        Decompose these predictions into logical diagnostic groups based on thematic or methodological categories. Ensure you preserve the full JSON structure (including criteria, model_answer, model_justification, ground_truth_answer) for each prediction in your output.
+        The output must be a JSON object containing a "groups" list. For each group, provide:
+        - "group_name" (str): A descriptive name for the diagnostic group.
+        - "tasks" (list of objects): The tasks belonging to this group. Each task must contain:
+          - "question_id" (str): The question identifier.
+          - "criteria" (str): The original question criteria.
+          - "model_answer" (boolean): The boolean answer provided by the model.
+          - "model_justification" (str): The justification provided by the model.
+          - "ground_truth_answer" (boolean or null): The expected ground truth boolean value.
+
+  analysis:
+    diagnose-all:
+      system: "You are a senior AI diagnostician. Your objective is to determine the root cause of model assessment logic by forensically analyzing the source document against the model's logic and the expected Ground Truth."
+      user: |-
+        ### ORIGINAL CRITERIA ###
+        {prompt_assessment_text}
+
+        ### PREDICTIONS ###
+        {tasks}
+
+        ### TASK ###
+        For each prediction, investigate the provided document to determine the objective truth. Compare this against both the model's logic and the ground truth.
+        Determine a short, dynamic category (e.g., 'Model Hallucination', 'Ground Truth Error', 'Ambiguous Text') that represents the root cause of the model's logic.
+
+        ### CONSTRAINTS ###
+        1. Base your explanation strictly on the provided document context.
+        2. Clearly explain why the ground truth is correct (or incorrect), and where the model succeeded or failed.
+        3. The output must be a JSON object containing an "analyses" list. For each analysis, provide:
+           - "question_id" (str): The exact ID of the targeted prediction.
+           - "category" (str): A short, dynamic classification of the root cause (e.g., 'Model Hallucination', 'Ambiguous Text').
+           - "explanation" (str): A detailed forensic explanation comparing the model's logic against the text and ground truth.
+
+    diagnose-mismatches:
+      system: "You are a senior AI diagnostician. Your objective is to determine the root cause of model assessment errors by forensically analyzing why the model failed to match the Ground Truth."
+      user: |-
+        ### ORIGINAL CRITERIA ###
+        {prompt_assessment_text}
+
+        ### MISMATCHED PREDICTIONS ###
+        {tasks}
+
+        ### TASK ###
+        For each prediction, investigate the provided document to determine why the model's logic failed against the expected ground truth.
+        Determine a short, dynamic category (e.g., 'Model Hallucination', 'Ground Truth Error', 'Ambiguous Text') that represents the root cause of the error.
+
+        ### CONSTRAINTS ###
+        1. Base your explanation strictly on the provided document context.
+        2. Clearly explain why the ground truth is correct (or incorrect), and exactly where the model failed.
+        3. The output must be a JSON object containing an "analyses" list. For each analysis, provide:
+           - "question_id" (str): The exact ID of the targeted prediction.
+           - "category" (str): A short, dynamic classification of the root cause of the error.
+           - "explanation" (str): A detailed forensic explanation comparing the model's logic against the text and ground truth.
+
+    diagnose-matches:
+      system: "You are a senior AI diagnostician. Your objective is to verify why the model's logic successfully matched the Ground Truth by analyzing the source document."
+      user: |-
+        ### ORIGINAL CRITERIA ###
+        {prompt_assessment_text}
+
+        ### MATCHED PREDICTIONS ###
+        {tasks}
+
+        ### TASK ###
+        For each prediction, verify that the model's logic correctly aligns with the objective truth in the provided document.
+        Determine a short, dynamic category (e.g., 'Correct Logic', 'Lucky Guess') that represents the nature of the match.
+
+        ### CONSTRAINTS ###
+        1. Base your explanation strictly on the provided document context.
+        2. Clearly explain why the logic successfully matched the ground truth.
+        3. The output must be a JSON object containing an "analyses" list. For each analysis, provide:
+           - "question_id" (str): The exact ID of the targeted prediction.
+           - "category" (str): A short classification of the match.
+           - "explanation" (str): A detailed forensic verification of the logic against the text.
+
+    diagnose-overpredictions:
+      system: "You are a senior AI diagnostician. Your objective is to determine why the model hallucinated or overpredicted a True value when the Ground Truth is False."
+      user: |-
+        ### ORIGINAL CRITERIA ###
+        {prompt_assessment_text}
+
+        ### OVERPREDICTED PREDICTIONS ###
+        {tasks}
+
+        ### TASK ###
+        For each overprediction, investigate the provided document to determine why the model falsely claimed the criteria was met.
+        Determine a short, dynamic category (e.g., 'Model Hallucination', 'Ground Truth Error', 'Out Of Context Quote') that represents the root cause of the overprediction.
+
+        ### CONSTRAINTS ###
+        1. Base your explanation strictly on the provided document context.
+        2. Clearly explain why the ground truth is False, and where the model hallucinated or misread the text.
+        3. The output must be a JSON object containing an "analyses" list. For each analysis, provide:
+           - "question_id" (str): The exact ID of the targeted prediction.
+           - "category" (str): A short, dynamic classification of the root cause of the overprediction.
+           - "explanation" (str): A detailed forensic explanation comparing the model's logic against the text and ground truth.
+
+    diagnose-underpredictions:
+      system: "You are a senior AI diagnostician. Your objective is to determine why the model missed or underpredicted a False value when the Ground Truth is True."
+      user: |-
+        ### ORIGINAL CRITERIA ###
+        {prompt_assessment_text}
+
+        ### UNDERPREDICTED PREDICTIONS ###
+        {tasks}
+
+        ### TASK ###
+        For each underprediction, investigate the provided document to determine why the model missed the evidence that satisfies the criteria.
+        Determine a short, dynamic category (e.g., 'Missed Evidence', 'Ground Truth Error', 'Complex Phrasing') that represents the root cause of the underprediction.
+
+        ### CONSTRAINTS ###
+        1. Base your explanation strictly on the provided document context.
+        2. Clearly explain why the ground truth is True, and where the model missed the evidence.
+        3. The output must be a JSON object containing an "analyses" list. For each analysis, provide:
+           - "question_id" (str): The exact ID of the targeted prediction.
+           - "category" (str): A short, dynamic classification of the root cause of the underprediction.
+           - "explanation" (str): A detailed forensic explanation comparing the model's logic against the text and ground truth.
+
+  fast:
+    diagnose-all:
+      system: "You are a senior AI diagnostician. Your objective is to determine the root cause of model assessment logic by forensically analyzing the source document against the model's logic and the expected Ground Truth."
+      user: |-
+        ### ORIGINAL CRITERIA ###
+        {prompt_assessment_text}
+
+        ### PREDICTIONS FOR DIAGNOSTIC ###
+        {details_json}
+
+        ### TASK ###
+        For each prediction, investigate the provided document to determine the objective truth. Compare this against both the model's logic and the ground truth.
+        Determine a short, dynamic category (e.g., 'Model Hallucination', 'Ground Truth Error', 'Ambiguous Text') that represents the root cause of the model's logic.
+
+        ### CONSTRAINTS ###
+        1. Base your explanation strictly on the provided document context.
+        2. Clearly explain why the ground truth is correct (or incorrect), and where the model succeeded or failed.
+        3. The output must be a JSON object containing an "analyses" list. For each analysis, provide:
+           - "question_id" (str): The exact ID of the targeted prediction.
+           - "category" (str): A short, dynamic classification of the root cause (e.g., 'Model Hallucination', 'Ambiguous Text').
+           - "explanation" (str): A detailed forensic explanation comparing the model's logic against the text and ground truth.
+
+    diagnose-mismatches:
+      system: "You are a senior AI diagnostician. Your objective is to determine the root cause of model assessment errors by forensically analyzing why the model failed to match the Ground Truth."
+      user: |-
+        ### ORIGINAL CRITERIA ###
+        {prompt_assessment_text}
+
+        ### PREDICTIONS FOR DIAGNOSTIC ###
+        {details_json}
+
+        ### TASK ###
+        For each mismatched prediction, investigate the provided document to determine why the model's logic failed against the expected ground truth.
+        Determine a short, dynamic category (e.g., 'Model Hallucination', 'Ground Truth Error', 'Ambiguous Text') that represents the root cause of the error.
+
+        ### CONSTRAINTS ###
+        1. Base your explanation strictly on the provided document context.
+        2. Clearly explain why the ground truth is correct (or incorrect), and exactly where the model failed.
+        3. The output must be a JSON object containing an "analyses" list. For each analysis, provide:
+           - "question_id" (str): The exact ID of the targeted prediction.
+           - "category" (str): A short, dynamic classification of the root cause of the error.
+           - "explanation" (str): A detailed forensic explanation comparing the model's logic against the text and ground truth.
+
+    diagnose-matches:
+      system: "You are a senior AI diagnostician. Your objective is to verify why the model's logic successfully matched the Ground Truth by analyzing the source document."
+      user: |-
+        ### ORIGINAL CRITERIA ###
+        {prompt_assessment_text}
+
+        ### PREDICTIONS FOR DIAGNOSTIC ###
+        {details_json}
+
+        ### TASK ###
+        For each matched prediction, verify that the model's logic correctly aligns with the objective truth in the provided document.
+        Determine a short, dynamic category (e.g., 'Correct Logic', 'Lucky Guess') that represents the nature of the match.
+
+        ### CONSTRAINTS ###
+        1. Base your explanation strictly on the provided document context.
+        2. Clearly explain why the logic successfully matched the ground truth.
+        3. The output must be a JSON object containing an "analyses" list. For each analysis, provide:
+           - "question_id" (str): The exact ID of the targeted prediction.
+           - "category" (str): A short classification of the match.
+           - "explanation" (str): A detailed forensic verification of the logic against the text.
+
+    diagnose-overpredictions:
+      system: "You are a senior AI diagnostician. Your objective is to determine why the model hallucinated or overpredicted a True value when the Ground Truth is False."
+      user: |-
+        ### ORIGINAL CRITERIA ###
+        {prompt_assessment_text}
+
+        ### PREDICTIONS FOR DIAGNOSTIC ###
+        {details_json}
+
+        ### TASK ###
+        For each overprediction, investigate the provided document to determine why the model falsely claimed the criteria was met.
+        Determine a short, dynamic category (e.g., 'Model Hallucination', 'Ground Truth Error', 'Out Of Context Quote') that represents the root cause of the overprediction.
+
+        ### CONSTRAINTS ###
+        1. Base your explanation strictly on the provided document context.
+        2. Clearly explain why the ground truth is False, and where the model hallucinated or misread the text.
+        3. The output must be a JSON object containing an "analyses" list. For each analysis, provide:
+           - "question_id" (str): The exact ID of the targeted prediction.
+           - "category" (str): A short, dynamic classification of the root cause of the overprediction.
+           - "explanation" (str): A detailed forensic explanation comparing the model's logic against the text and ground truth.
+
+    diagnose-underpredictions:
+      system: "You are a senior AI diagnostician. Your objective is to determine why the model missed or underpredicted a False value when the Ground Truth is True."
+      user: |-
+        ### ORIGINAL CRITERIA ###
+        {prompt_assessment_text}
+
+        ### PREDICTIONS FOR DIAGNOSTIC ###
+        {details_json}
+
+        ### TASK ###
+        For each underprediction, investigate the provided document to determine why the model missed the evidence that satisfies the criteria.
+        Determine a short, dynamic category (e.g., 'Missed Evidence', 'Ground Truth Error', 'Complex Phrasing') that represents the root cause of the underprediction.
+
+        ### CONSTRAINTS ###
+        1. Base your explanation strictly on the provided document context.
+        2. Clearly explain why the ground truth is True, and where the model missed the evidence.
+        3. The output must be a JSON object containing an "analyses" list. For each analysis, provide:
+           - "question_id" (str): The exact ID of the targeted prediction.
+           - "category" (str): A short, dynamic classification of the root cause of the underprediction.
+           - "explanation" (str): A detailed forensic explanation comparing the model's logic against the text and ground truth.

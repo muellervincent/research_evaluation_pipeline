@@ -23,6 +23,7 @@ preprocess:
         1. Remove all instructions related to output syntax, delimiters, and formatting (e.g., JSON, Markdown, CSV tables, headers, or escape characters).
         2. Remove meta-instructions regarding model behavior or verification (e.g., "do not use the internet", "verify quotes", "take your time", "analyse carefully").
         3. Retain all analytical questions, criteria, and conditional instructions.
+        4. If the original question has a label or number (e.g., '1.', '7a.'), record it as the 'original_id'. If no label exists, set 'original_id' to null and 'semantic_id' to an empty string. Retain the label or number in the text.
 
         ### OUTPUT CONSTRAINTS ###
         The output must be a JSON object containing the following fields:

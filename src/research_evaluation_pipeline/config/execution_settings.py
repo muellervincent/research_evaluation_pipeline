@@ -98,7 +98,7 @@ class RefinementSettings(StepSettings):
     """
 
     strategy: RefinementStrategy = Field(
-        RefinementStrategy.STANDARD, description="Criteria cleaning strategy"
+        RefinementStrategy.SEMANTIC, description="Criteria cleaning strategy"
     )
 
 

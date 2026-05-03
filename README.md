@@ -1,10 +1,10 @@
 # Research Evaluation Pipeline
 
-The Research Evaluation Pipeline is a framework designed for the automated assessment and diagnostic analysis of research papers using large language models. It provides a structured workflow to ingest documents, evaluate them against specific criteria, and perform root-cause analysis on discrepancies between model predictions and ground truth data.
+This pipeline automates the evaluation and diagnostic analysis of research papers using Large Language Models (LLMs). It manages document ingestion, criteria-based assessment, and root-cause analysis of discrepancies between model outputs and ground truth.
 
 ## Execution Architecture
 
-The following diagram illustrates the complete data flow and execution architecture of the pipeline. It highlights the production of granular artifacts within each stage and the cross-stage dependencies that drive the reasoning process.
+This diagram shows the pipeline's data flow, execution architecture, and the artifacts generated at each stage.
 
 ```mermaid
 graph TD
@@ -115,18 +115,18 @@ graph TD
 
 ## Features
 
-- **Multi-Stage Pipeline**: Modular execution flow including preprocessing, assessment, diagnostic, and results stages.
-- **Automated Reporting**: Generation of comprehensive Markdown and JSON reports comparing model assessments against ground truth data.
-- **Granular Control**: Ability to run the entire pipeline, specific stages, or individual atomic steps.
-- **Deterministic Tracking**: Content-based hashing and key building for consistent artifact management and caching.
-- **Multi-Client Provider Architecture**: Protocol-based architecture designed to support multiple LLM providers. A Google Gemini client is currently provided as the reference implementation.
-- **Flexible Configuration**: Support for multiple execution profiles and client configurations via TOML files.
-- **Persistent Artifact Store**: SQLite-based caching system to minimize redundant API calls and facilitate development.
+- **Multi-Stage Execution**: Modular workflow covering preprocessing, assessment, diagnostics, and results generation.
+- **Automated Reporting**: Generates Markdown and JSON reports with ground truth comparison metrics.
+- **Granular Execution**: Run the full pipeline, specific stages, or individual atomic steps via the CLI.
+- **Deterministic Caching**: Content-based hashing ensures consistent artifact management and avoids redundant computation.
+- **Provider Agnostic**: Protocol-based architecture supporting multiple LLM providers (Google Gemini included).
+- **TOML-Based Config**: Manage complex execution profiles and client credentials via TOML files.
+- **SQLite Artifact Store**: Local caching system to reduce API latency and costs during development.
 
 ## Project Structure
 
 - `src/research_evaluation_pipeline`: Core logic and CLI implementation.
-- `resources/`: Directory for input data and configurations. **Note**: As specified in `.gitignore`, local assets such as PDFs, databases, and convenience artifacts are excluded from the repository and must be populated by the user before execution.
+- `resources/`: Directory for input data and configurations.
 - `resources/profiles`: Example configuration files for execution strategies and client settings.
 - `resources/papers`: Target directory for source PDF documents.
 - `resources/prompts_default.yaml`: A provided set of default system and user prompts for various pipeline stages.
@@ -161,10 +161,23 @@ curl -LsSf https://astral.sh/uv/install.sh | sh
 ```bash
 uv sync
 ```
-**Populate Resources**:
--   Add your research papers (PDFs) to the `resources/papers/` directory.
--   Ensure your ground truth files are available in the `resources/` folder.
--   While a default set of pipeline prompts is provided in `resources/prompts_default.yaml`, you should populate `resources/prompts_master.yaml` with your specific evaluation criteria.
+
+#### Prompt Data Structure
+The pipeline supports various formats for evaluation criteria:
+
+-   **Standalone Files** (`.md`, `.txt`): The entire file content is treated as the master prompt.
+-   **Prompt Registries** (`.yaml`, `.json`): A dictionary of multiple prompts. Requires the `--prompt-key` argument to select a specific instruction set.
+
+#### Ground Truth Data Structure
+To enable accuracy reporting and diagnostic analysis, your ground truth CSV must adhere to the following specification:
+
+-   **Delimiter**: Semicolon (`;`).
+-   **Required Columns**:
+    -   `study_number`: Identifier matching the paper filename stem (e.g., `0400.pdf` -> `400`).
+    -   `prompt_number`: Criterion identifier matching the prompt registry (e.g., `1`, `2a`).
+    -   `answer`: Binary integer where `1` is **True** and `0` is **False**.
+
+*Note: If you intend to use a custom csv structure, make sure to update the `_load_ground_truth_from_path` method in `src/research_evaluation_pipeline/cli.py` accordingly.*
 
 ## Configuration
 
@@ -176,33 +189,96 @@ The pipeline utilizes the `keyring` library to securely manage API keys. Users m
 
 Example execution profiles are defined in `resources/profiles/execution.toml`. Each profile controls the behavior, model selection, and strategies for the entire pipeline.
 
-#### Global Settings
-- `ingestion_mode`: Determines how paper content is provided to models (`extraction` for Markdown conversion, `upload` for direct PDF binary upload).
+#### 1. General Step Settings
+All atomic steps (e.g., Refinement, Decomposition, Synthesis) share a common foundation defined by the `StepSettings` model:
 
-#### Preprocess Stage
-- **Refinement**: Configures how master criteria are cleaned. Includes `model`, `temperature`, `cache_policy`, and `strategy` (`standard` or `semantic`).
-- **Extraction**: Configures PDF-to-Markdown conversion. Includes `model`, `temperature`, and `cache_policy`.
+-   `model`: The identifier of the LLM model to use.
+    -   *Options (Example Implementation)*: `gemini-2.5-flash`, `gemini-2.5-pro`, `gemini-3-flash-preview`, `gemini-3.1-pro-preview`, etc.
+-   `temperature`: Controls the randomness of the generation.
+-   `cache_policy`: Rules for interacting with the local artifact store.
+    -   `use-cache`: Use existing artifacts if available (default).
+    -   `bypass-cache`: Execute the step and store the result, ignoring existing artifacts.
+    -   `overwrite-cache`: Execute the step and overwrite any existing artifacts.
 
-#### Assessment Stage
-- `fragmentation`: High-level execution mode. `fast` for single-pass assessment, `plan` for multi-step reasoning (decomposition -> extraction -> synthesis).
-- **Decomposition**: Settings for breaking down criteria. Strategy can be `semantic` or `structural`.
-- **Extraction**: Settings for evidence location. Includes `processing_mode` (`sequential` or `concurrent`).
-- **Synthesis**: Settings for final reasoning over evidence. Strategy can be `concise`, `analytical`, or `verbose`.
+#### 2. Pipeline Configuration
+Global settings that affect the overall data flow:
 
-#### Diagnostic Stage (Optional)
-- `fragmentation`: `fast` for single-pass analysis, `plan` for multi-step root cause analysis.
-- `prompt_source`: Determines whether to use the `master` or `refined` prompt for diagnostics.
-- **Decomposition**: Settings for error batching. Strategy defaults to `thematic`.
-- **Analysis**: Settings for mismatch detection. Strategies include `diagnose-all`, `diagnose-mismatches`, `diagnose-matches`, etc.
+-   `ingestion_mode`: How paper content is provided to the models.
+    -   `extraction`: Converts PDF to Markdown via a dedicated extraction step.
+    -   `upload`: Directly uploads the PDF binary to the model's file API.
 
-#### Results Stage (Optional)
-- **Artifact Reconstruction**: Logic for merging fragmented assessment and diagnostic artifacts into a unified data model.
-- **Multi-Format Export**: Automated generation of results in both human-readable Markdown and machine-readable JSON formats.
-- **Ground Truth Comparison**: Integrated logic for calculating accuracy and identifying discrepancies between model predictions and provided ground truth.
+---
+
+#### Stage 1: Preprocess
+Prepares evaluation criteria and extracts paper content for processing.
+
+-   **Refinement**: Structures and cleans the master criteria into a refined prompt.
+    -   `strategy`:
+        -   `standard`: Directly structures the master criteria.
+        -   `semantic`: Resolves semantic ambiguities and improves criteria phrasing.
+-   **Extraction**: Converts source PDFs into structured Markdown (active only if `ingestion_mode` is `extraction`).
+
+---
+
+#### Stage 2: Assessment
+Assesses papers against defined criteria using single-pass or multi-step reasoning.
+
+-   `fragmentation`: High-level execution architecture.
+    -   `fast`: Performs a single-shot assessment.
+    -   `plan`: Executes a multi-step chain.
+-   **Decomposition**: Breaks down the evaluation criteria into atomic task groups.
+    -   `strategy`:
+        -   `semantic`: Groups criteria by logical intent.
+        -   `structural`: Groups criteria based on the paper's section hierarchy.
+-   **Extraction**: Locates and extracts verbatim evidence for each task.
+    -   `strategy`:
+        -   `standard`: Standard evidence location logic.
+    -   `processing_mode`:
+        -   `concurrent`: Parallel execution of evidence extraction tasks.
+        -   `sequential`: Serial execution to manage API rate limits.
+-   **Synthesis**: Renders final scores and reasoning based on extracted evidence.
+    -   `strategy`:
+        -   `analytical`: Balanced reasoning with evidence cross-referencing.
+        -   `concise`: Final scores with minimal explanation.
+        -   `verbose`: Comprehensive reports with exhaustive evidence logs.
+
+---
+
+#### Stage 3: Diagnostic (Optional)
+Identifies and analyzes discrepancies between model assessments and ground truth.
+
+-   `fragmentation`:
+    -   `fast`: Single-shot diagnostic analysis.
+    -   `plan`: Multi-step diagnostic analysis.
+-   `prompt_source`: Determines which criteria prompt to use for analysis.
+    -   `master`: Uses original evaluation criteria.
+    -   `refined`: Uses the prompt from the Preprocess stage.
+-   **Decomposition**: Groups assessment errors for thematic analysis.
+    -   `strategy`:
+        -   `thematic`: Groups errors by common logical themes.
+-   **Analysis**: Performs the root-cause analysis on the identified errors.
+    -   `strategy`:
+        -   `diagnose-all`: Analyzes every prediction.
+        -   `diagnose-mismatches`: Analyzes only model/ground-truth disagreements.
+        -   `diagnose-matches`: Analyzes cases where the model correctly matched ground truth.
+        -   `diagnose-overpredictions`: Specifically targets false positives.
+        -   `diagnose-underpredictions`: Specifically targets false negatives.
+    -   `processing_mode`:
+        -   `concurrent`: Parallel analysis.
+        -   `sequential`: Serial analysis.
+
+---
+
+#### Stage 4: Results
+Aggregates results and generates final reports.
+
+-   **Artifact Reconstruction**: Merges fragmented assessment and diagnostic artifacts into a unified data model.
+-   **Multi-Format Export**: Generates human-readable Markdown and machine-readable JSON reports.
+-   **Ground Truth Comparison**: Calculates accuracy metrics and identifies discrepancies between model predictions and ground truth.
 
 ### Provider Architecture
 
-The system is designed with a multi-client provider architecture to support various LLM services. The Google Gemini client is currently implemented as the primary example of this architecture.
+The pipeline uses a multi-client architecture to support various LLM providers. Google Gemini is the current reference implementation.
 
 ## Usage
 
@@ -262,16 +338,30 @@ The `db` command group provides utilities for managing the local artifact cache.
 
 ### Convenience Scripts
 
-The `scripts/` directory contains shell scripts that provide shortcuts for common execution patterns. These scripts are configured to use the suggested directory structure within the `resources/` folder to streamline the workflow.
+The `scripts/` directory contains shell scripts that simplify common execution patterns by leveraging the `resources/` directory conventions.
 
-- `run_pipeline.sh`: Runs the full pipeline with configurable parameters.
-- `run_stage.sh`: Runs a specific pipeline stage.
-- `run_step.sh`: Runs a granular atomic step.
+#### Script Configuration
+These scripts are pre-configured to map the following local paths to the corresponding `rrp` CLI arguments:
+-   `--paper-path`: Maps to `resources/papers/<paper_name>.pdf`
+-   `--prompt-path`: Maps to `resources/prompts_master.yaml`
+-   `--ground-truth-path`: Maps to `resources/correct_answers.csv`
 
-Example:
+#### Populating Resources for Scripts
+To use these scripts, organize your data as follows:
+1.  **Papers**: Add source PDFs to `resources/papers/`.
+2.  **Ground Truth**: Name your CSV `correct_answers.csv` and place it in the `resources/` directory.
+3.  **Criteria**: Populate `resources/prompts_master.yaml` with your criteria (this file includes several example prompts for reference).
+
+**Available Scripts**:
+-   `run_pipeline.sh`: Executes the full end-to-end pipeline.
+-   `run_stage.sh`: Executes a specific pipeline stage (e.g., `preprocess`).
+-   `run_step.sh`: Executes a granular atomic step (e.g., `refine`).
+
+**Example Usage**:
 ```bash
 ./scripts/run_pipeline.sh <profile_name> <client_profile_name> <paper_path>
 ```
+*Note: If you require custom file locations outside of these conventions, use the `rrp` CLI directly.*
 
 ## Development
 

@@ -1,17 +1,13 @@
 """
 Pipeline Runner Service.
 
-Provides a high-level API to execute the research evaluation pipeline,
-independent of the CLI or frontend.
+Provides a high-level API to execute the research evaluation pipeline.
+Stateless and path-agnostic, accepting pre-loaded data.
 """
 
-import csv
 import hashlib
-import json
 from pathlib import Path
 
-import tomli
-import yaml
 from loguru import logger
 
 from .clients.factory import ProviderFactory
@@ -19,13 +15,13 @@ from .config.client_settings import ClientProfile
 from .config.execution_settings import PipelineProfile
 from .config.prompt_registry import PromptRegistry
 from .core.artifact_store import ArtifactStore
-from .core.domain import PaperContext
 from .core.enums import FragmentationMode, IngestionMode
+from .core.paper_context import PaperContext
+from .reporting.generator import ResultGenerator
 from .service.artifact_key_builder import ArtifactKeyBuilder
 from .service.master_orchestrator import MasterOrchestrator
 from .service.paper_context_service import PaperContextService
 from .service.step_executor import StepExecutor
-from .reporting.generator import ResultGenerator
 
 
 class RunnerError(Exception):
@@ -36,129 +32,35 @@ class PipelineRunner:
     """
     High-level API for running the research evaluation pipeline.
 
-    This class encapsulates input resolution, profile management, orchestrator
-    setup, and the execution logic for stages and steps.
+    This class is stateless and path-agnostic, accepting pre-loaded
+    data and profiles to execute the pipeline stages.
     """
 
-    def __init__(
-        self,
-        execution_profiles_path: Path = Path("resources/profiles/execution.toml"),
-        client_profiles_path: Path = Path("resources/profiles/client.toml"),
-    ):
-        self.execution_profiles_path = execution_profiles_path
-        self.client_profiles_path = client_profiles_path
-
-    def resolve_inputs(
-        self,
-        paper_path: Path,
-        prompt_path: Path,
-        prompt_key: str | None,
-        ground_truth_path: Path | None,
-    ) -> tuple[str, str, str]:
+    def __init__(self):
         """
-        Resolve and validate all execution inputs.
-
-        Handles:
-        - Deriving paper stem from PDF filename.
-        - Loading prompt content from MD/TXT or JSON/YAML.
-        - Generating a deterministic master_prompt_key via hashing.
-
-        Returns:
-            tuple of (paper_stem, master_prompt_text, master_prompt_key)
-
-        Raises:
-            RunnerError: If inputs are invalid or missing.
+        Initialize the runner.
         """
+        pass
 
-        if not paper_path.exists():
-            raise RunnerError(f"Paper not found: {paper_path}")
-        paper_stem = paper_path.stem
-
-        if not prompt_path.exists():
-            raise RunnerError(f"Prompt file not found: {prompt_path}")
-
-        extension = prompt_path.suffix.lower()
-        master_prompt_text = ""
-
-        if extension in (".md", ".txt"):
-            master_prompt_text = prompt_path.read_text(encoding="utf-8")
-        elif extension in (".json", ".yaml", ".yml"):
-            with open(prompt_path, "r", encoding="utf-8") as prompt_file:
-                data = (
-                    json.load(prompt_file) if extension == ".json" else yaml.safe_load(prompt_file)
-                )
-
-            if prompt_key:
-                if prompt_key not in data:
-                    raise RunnerError(f"Key '{prompt_key}' not found in {prompt_path}")
-                master_prompt_text = data[prompt_key]
-            else:
-                if isinstance(data, str):
-                    master_prompt_text = data
-                elif isinstance(data, dict) and len(data) == 1:
-                    master_prompt_text = list(data.values())[0]
-                else:
-                    raise RunnerError("Prompt key is required for registry files.")
-        else:
-            raise RunnerError(f"Unsupported prompt file extension: {extension}")
-
-        master_prompt_key = hashlib.sha256(master_prompt_text.encode("utf-8")).hexdigest()[:8]
-
-        if not ground_truth_path or not ground_truth_path.exists():
-            raise RunnerError("Ground truth file not found.")
-
-        return paper_stem, master_prompt_text, master_prompt_key
-
-    def load_profile(self, profile_name: str) -> PipelineProfile:
+    @staticmethod
+    def generate_prompt_key(prompt_text: str) -> str:
         """
-        Load and validate a PipelineProfile from the filesystem.
+        Generate a deterministic 8-character hash for a prompt.
         """
-        if not self.execution_profiles_path.exists():
-            raise RunnerError(f"Profiles file not found: {self.execution_profiles_path}")
-
-        with open(self.execution_profiles_path, "rb") as profile_file:
-            profiles_data = tomli.load(profile_file)
-
-        if profile_name not in profiles_data:
-            raise RunnerError(
-                f"Profile '{profile_name}' not found in {self.execution_profiles_path}"
-            )
-
-        try:
-            return PipelineProfile(**profiles_data[profile_name])
-        except Exception as error:
-            raise RunnerError(f"Failed to validate PipelineProfile '{profile_name}': {error}")
-
-    def load_client_profile(self, profile_name: str) -> ClientProfile:
-        """
-        Load and validate a ClientProfile from the filesystem.
-        """
-        if not self.client_profiles_path.exists():
-            raise RunnerError(f"Client profiles file not found: {self.client_profiles_path}")
-
-        with open(self.client_profiles_path, "rb") as profile_file:
-            profiles_data = tomli.load(profile_file)
-
-        if profile_name not in profiles_data:
-            raise RunnerError(
-                f"Client profile '{profile_name}' not found in {self.client_profiles_path}"
-            )
-
-        try:
-            return ClientProfile(**profiles_data[profile_name])
-        except Exception as error:
-            raise RunnerError(f"Failed to validate ClientProfile '{profile_name}': {error}")
+        return hashlib.sha256(prompt_text.encode("utf-8")).hexdigest()[:8]
 
     def setup_orchestrator(
-        self, profile_name: str, client_profile_name: str, paper_stem: str, master_prompt_key: str
+        self,
+        profile: PipelineProfile,
+        client_profile: ClientProfile,
+        paper_stem: str,
+        master_prompt_key: str,
+        artifact_store_path: Path = Path("resources/artifacts.db"),
     ) -> MasterOrchestrator:
         """
         Construct the full dependency graph for the orchestrator.
         """
-        profile = self.load_profile(profile_name)
-        client_profile = self.load_client_profile(client_profile_name)
-
-        artifact_store = ArtifactStore()
+        artifact_store = ArtifactStore(database_path=artifact_store_path)
         prompt_registry = PromptRegistry()
         provider = ProviderFactory.get_provider(client_profile)
 
@@ -181,84 +83,40 @@ class PipelineRunner:
             key_builder=key_builder,
             paper_context_service=paper_context_service,
             step_executor=step_executor,
-            paper_stem=paper_stem,
-            master_prompt_key=master_prompt_key,
         )
-
-    def load_ground_truth(
-        self, ground_truth_path: Path | None, paper_stem: str
-    ) -> dict[str, bool] | None:
-        """
-        Retrieve expected answers for a specific paper from a CSV file.
-        """
-        if not ground_truth_path or not ground_truth_path.exists():
-            return None
-        try:
-            study_identifier = paper_stem.lstrip("0")
-            ground_truth_data = {}
-            with open(ground_truth_path, "r") as ground_truth_file:
-                reader = csv.DictReader(ground_truth_file, delimiter=";")
-                for row in reader:
-                    if row["study_number"] == study_identifier:
-                        answer_text = row["answer"].strip()
-                        prompt_number = row["prompt_number"].strip()
-                        answer_value = None
-                        if answer_text == "1":
-                            answer_value = True
-                        elif answer_text == "0":
-                            answer_value = False
-
-                        if answer_value is not None:
-                            ground_truth_data[prompt_number] = answer_value
-                            ground_truth_data[f"{prompt_number}."] = answer_value
-            return ground_truth_data if ground_truth_data else None
-        except Exception as exception:
-            logger.error(f"Failed to load ground truth from {ground_truth_path}: {exception}")
-            return None
 
     async def run_pipeline(
         self,
-        paper_path: Path,
-        prompt_path: Path,
-        ground_truth_path: Path,
-        profile_name: str = "standard",
-        client_profile_name: str = "unpaid",
-        prompt_key: str | None = None,
+        paper_stem: str,
+        paper_bytes: bytes,
+        master_prompt: str,
+        profile: PipelineProfile,
+        client_profile: ClientProfile,
+        ground_truth: dict[str, bool] | None = None,
     ):
         """
         Execute the entire research assessment and diagnostic pipeline end-to-end.
         """
-        paper_stem, master_prompt, master_prompt_key = self.resolve_inputs(
-            paper_path, prompt_path, prompt_key, ground_truth_path
-        )
+        master_prompt_key = self.generate_prompt_key(master_prompt)
 
         orchestrator = self.setup_orchestrator(
-            profile_name, client_profile_name, paper_stem, master_prompt_key
+            profile, client_profile, paper_stem, master_prompt_key
         )
 
         paper_context = None
         try:
             paper_context = await orchestrator.paper_context_service.build_initial_context(
-                paper_path
+                paper_stem=paper_stem, raw_bytes=paper_bytes
             )
             await self._run_preprocess_stage(orchestrator, master_prompt, paper_context)
             await self._run_assessment_stage(orchestrator, paper_context)
 
-            if (
-                orchestrator.profile.diagnostic
-                and orchestrator.profile.diagnostic.prompt_source.value == "refined"
-            ):
-                refinement_result = orchestrator.step_executor.require_refinement_result()
-                assessment_prompt = refinement_result.refined_prompt
-            else:
-                assessment_prompt = master_prompt
+            assessment_prompt = orchestrator.step_executor.resolve_diagnostic_prompt(master_prompt)
 
             await self._run_diagnostic_stage(
-                orchestrator, assessment_prompt, paper_context, ground_truth_path
+                orchestrator, assessment_prompt, paper_context, ground_truth
             )
-            await self._run_results_stage(
-                orchestrator, profile_name, master_prompt, ground_truth_path
-            )
+            await self._run_results_stage(orchestrator, master_prompt, ground_truth)
             logger.success("Pipeline complete.")
         finally:
             if paper_context:
@@ -267,28 +125,26 @@ class PipelineRunner:
     async def run_stage(
         self,
         stage: str,
-        paper_path: Path,
-        prompt_path: Path,
-        ground_truth_path: Path,
-        profile_name: str = "standard",
-        client_profile_name: str = "unpaid",
-        prompt_key: str | None = None,
+        paper_stem: str,
+        paper_bytes: bytes,
+        master_prompt: str,
+        profile: PipelineProfile,
+        client_profile: ClientProfile,
+        ground_truth: dict[str, bool] | None = None,
     ):
         """
         Execute a single stage of the research pipeline.
         """
-        paper_stem, master_prompt, master_prompt_key = self.resolve_inputs(
-            paper_path, prompt_path, prompt_key, ground_truth_path
-        )
+        master_prompt_key = self.generate_prompt_key(master_prompt)
 
         orchestrator = self.setup_orchestrator(
-            profile_name, client_profile_name, paper_stem, master_prompt_key
+            profile, client_profile, paper_stem, master_prompt_key
         )
 
         paper_context = None
         try:
             paper_context = await orchestrator.paper_context_service.build_initial_context(
-                paper_path
+                paper_stem=paper_stem, raw_bytes=paper_bytes
             )
 
             if stage == "preprocess":
@@ -296,21 +152,12 @@ class PipelineRunner:
             elif stage == "assessment":
                 await self._run_assessment_stage(orchestrator, paper_context)
             elif stage == "diagnostic":
-                if (
-                    orchestrator.profile.diagnostic
-                    and orchestrator.profile.diagnostic.prompt_source.value == "refined"
-                ):
-                    refinement_result = orchestrator.step_executor.require_refinement_result()
-                    assessment_prompt = refinement_result.refined_prompt
-                else:
-                    assessment_prompt = master_prompt
+                assessment_prompt = orchestrator.step_executor.resolve_diagnostic_prompt(master_prompt)
                 await self._run_diagnostic_stage(
-                    orchestrator, assessment_prompt, paper_context, ground_truth_path
+                    orchestrator, assessment_prompt, paper_context, ground_truth
                 )
             elif stage == "results":
-                await self._run_results_stage(
-                    orchestrator, profile_name, master_prompt, ground_truth_path
-                )
+                await self._run_results_stage(orchestrator, master_prompt, ground_truth)
             else:
                 raise RunnerError(f"Stage '{stage}' is not supported.")
 
@@ -322,28 +169,26 @@ class PipelineRunner:
         self,
         stage: str,
         step: str,
-        paper_path: Path,
-        prompt_path: Path,
-        ground_truth_path: Path,
-        profile_name: str = "standard",
-        client_profile_name: str = "unpaid",
-        prompt_key: str | None = None,
+        paper_stem: str,
+        paper_bytes: bytes,
+        master_prompt: str,
+        profile: PipelineProfile,
+        client_profile: ClientProfile,
+        ground_truth: dict[str, bool] | None = None,
     ):
         """
         Execute a granular atomic step with strict prerequisite validation.
         """
-        paper_stem, master_prompt, master_prompt_key = self.resolve_inputs(
-            paper_path, prompt_path, prompt_key, ground_truth_path
-        )
+        master_prompt_key = self.generate_prompt_key(master_prompt)
 
         orchestrator = self.setup_orchestrator(
-            profile_name, client_profile_name, paper_stem, master_prompt_key
+            profile, client_profile, paper_stem, master_prompt_key
         )
 
         paper_context = None
         try:
             paper_context = await orchestrator.paper_context_service.build_initial_context(
-                paper_path
+                paper_stem=paper_stem, raw_bytes=paper_bytes
             )
 
             if stage == "preprocess":
@@ -353,16 +198,9 @@ class PipelineRunner:
                 await self._run_assessment_step(orchestrator, step, paper_context)
 
             elif stage == "diagnostic":
-                if (
-                    orchestrator.profile.diagnostic
-                    and orchestrator.profile.diagnostic.prompt_source.value == "refined"
-                ):
-                    refinement_result = orchestrator.step_executor.require_refinement_result()
-                    assessment_prompt = refinement_result.refined_prompt
-                else:
-                    assessment_prompt = master_prompt
+                assessment_prompt = orchestrator.step_executor.resolve_diagnostic_prompt(master_prompt)
                 await self._run_diagnostic_step(
-                    orchestrator, step, assessment_prompt, paper_context, ground_truth_path
+                    orchestrator, step, assessment_prompt, paper_context, ground_truth
                 )
 
             else:
@@ -389,6 +227,7 @@ class PipelineRunner:
         elif step == "extract":
             await orchestrator.paper_context_service.prepare_for_model_execution(paper_context)
             await orchestrator.execute_preprocess_extraction(paper_context)
+            await orchestrator.paper_context_service.restore_extracted_markdown(paper_context)
             logger.success("Preprocess extraction complete.")
 
         else:
@@ -401,7 +240,7 @@ class PipelineRunner:
         Execute the full preprocess stage.
         """
         await self._run_preprocess_step(orchestrator, "refine", master_prompt, paper_context)
-        if paper_context.ingestion_mode == IngestionMode.EXTRACTION:
+        if orchestrator.profile.ingestion_mode == IngestionMode.MD:
             await self._run_preprocess_step(orchestrator, "extract", master_prompt, paper_context)
 
     async def _run_assessment_step(
@@ -413,7 +252,7 @@ class PipelineRunner:
         if step == "fast":
             refinement_result = orchestrator.step_executor.require_refinement_result()
             await orchestrator.paper_context_service.prepare_for_model_execution(paper_context)
-            await orchestrator.paper_context_service.ensure_application_programming_interface_cache(
+            await orchestrator.paper_context_service.ensure_api_cache(
                 paper_context, orchestrator.profile.assessment.synthesis.model.value
             )
             await orchestrator.execute_fast_assessment(
@@ -432,7 +271,7 @@ class PipelineRunner:
                 refinement_result.refined_prompt
             )
             await orchestrator.paper_context_service.prepare_for_model_execution(paper_context)
-            await orchestrator.paper_context_service.ensure_application_programming_interface_cache(
+            await orchestrator.paper_context_service.ensure_api_cache(
                 paper_context, orchestrator.profile.assessment.extraction.model.value
             )
             await orchestrator.step_executor.dispatch_assessment_groups(task_list, paper_context)
@@ -472,7 +311,7 @@ class PipelineRunner:
         step: str,
         assessment_prompt: str,
         paper_context: PaperContext,
-        ground_truth_path: Path | None,
+        ground_truth: dict[str, bool] | None,
     ):
         """
         Internal dispatcher for diagnostic-specific steps.
@@ -484,13 +323,12 @@ class PipelineRunner:
         if not assessment_report:
             raise RunnerError("Missing Assessment artifacts. Run 'assessment' stage first.")
 
-        ground_truth_data = self.load_ground_truth(ground_truth_path, orchestrator.paper_stem)
         identifier_mapping = orchestrator.step_executor.get_identifier_mapping()
         assessment_details = [answer.model_dump() for answer in assessment_report.answers]
 
         strategy_target = orchestrator.profile.diagnostic.analysis.strategy
         filtered_assessment_details = orchestrator.step_executor.filter_diagnostic_details(
-            assessment_details, strategy_target, identifier_mapping, ground_truth_data
+            assessment_details, strategy_target, identifier_mapping, ground_truth
         )
 
         if not filtered_assessment_details:
@@ -501,7 +339,7 @@ class PipelineRunner:
 
         if step == "fast":
             await orchestrator.paper_context_service.prepare_for_model_execution(paper_context)
-            await orchestrator.paper_context_service.ensure_application_programming_interface_cache(
+            await orchestrator.paper_context_service.ensure_api_cache(
                 paper_context, orchestrator.profile.diagnostic.analysis.model.value
             )
             await orchestrator.execute_fast_diagnostic(
@@ -520,7 +358,7 @@ class PipelineRunner:
                 assessment_prompt, filtered_assessment_details
             )
             await orchestrator.paper_context_service.prepare_for_model_execution(paper_context)
-            await orchestrator.paper_context_service.ensure_application_programming_interface_cache(
+            await orchestrator.paper_context_service.ensure_api_cache(
                 paper_context, orchestrator.profile.diagnostic.analysis.model.value
             )
             await orchestrator.step_executor.dispatch_diagnostic_groups(
@@ -536,7 +374,7 @@ class PipelineRunner:
         orchestrator: MasterOrchestrator,
         assessment_prompt: str,
         paper_context: PaperContext,
-        ground_truth_path: Path | None,
+        ground_truth: dict[str, bool] | None,
     ):
         """
         Execute the full diagnostic stage.
@@ -545,22 +383,21 @@ class PipelineRunner:
             return
         if orchestrator.profile.diagnostic.fragmentation == FragmentationMode.FAST:
             await self._run_diagnostic_step(
-                orchestrator, "fast", assessment_prompt, paper_context, ground_truth_path
+                orchestrator, "fast", assessment_prompt, paper_context, ground_truth
             )
         else:
             await self._run_diagnostic_step(
-                orchestrator, "decompose", assessment_prompt, paper_context, ground_truth_path
+                orchestrator, "decompose", assessment_prompt, paper_context, ground_truth
             )
             await self._run_diagnostic_step(
-                orchestrator, "analyze", assessment_prompt, paper_context, ground_truth_path
+                orchestrator, "analyze", assessment_prompt, paper_context, ground_truth
             )
 
     async def _run_results_stage(
         self,
         orchestrator: MasterOrchestrator,
-        profile_name: str,
         master_prompt: str,
-        resolved_ground_truth_path: Path | None,
+        ground_truth: dict[str, bool] | None,
     ):
         """
         Execute the final result generation stage.
@@ -577,9 +414,6 @@ class PipelineRunner:
             return
 
         identifier_mapping = orchestrator.step_executor.get_identifier_mapping()
-        ground_truth_data = self.load_ground_truth(
-            resolved_ground_truth_path, orchestrator.paper_stem
-        )
 
         diagnostic_report = None
         if orchestrator.profile.diagnostic:
@@ -588,7 +422,7 @@ class PipelineRunner:
                 assessment_details,
                 orchestrator.profile.diagnostic.analysis.strategy,
                 identifier_mapping,
-                ground_truth_data,
+                ground_truth,
             )
             diagnostic_report = await orchestrator.reconstruct_diagnostic_report(
                 prompt, filtered_assessment_details
@@ -600,9 +434,9 @@ class PipelineRunner:
             profile=orchestrator.profile,
             assessment_report=assessment_report,
             identifier_mapping=identifier_mapping,
-            ground_truth=ground_truth_data,
-            paper_stem=orchestrator.paper_stem,
-            master_prompt_key=orchestrator.master_prompt_key,
+            ground_truth=ground_truth,
+            paper_stem=orchestrator.key_builder.paper_stem,
+            master_prompt_key=orchestrator.key_builder.master_prompt_key,
             diagnostic_report=diagnostic_report,
             refined_prompt=prompt,
         )
@@ -613,7 +447,7 @@ class PipelineRunner:
         output_dir = Path("output")
         output_dir.mkdir(parents=True, exist_ok=True)
 
-        base_filename = f"{profile_name}_{orchestrator.paper_stem}_{orchestrator.master_prompt_key}_{settings_hex}"
+        base_filename = f"{orchestrator.profile.ingestion_mode.value}_{orchestrator.key_builder.paper_stem}_{orchestrator.key_builder.master_prompt_key}_{settings_hex}"
 
         json_path = output_dir / f"{base_filename}.json"
         with open(json_path, "w") as result_file:

@@ -17,7 +17,7 @@ from .schemas import (
     AssessmentGroup,
     AssessmentTaskList,
 )
-from ...core.domain import PaperContext
+from ...core.paper_context import PaperContext
 
 
 class Decomposition(Model[AssessmentTaskList]):

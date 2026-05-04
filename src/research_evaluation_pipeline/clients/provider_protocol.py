@@ -37,14 +37,6 @@ class ModelProvider(Protocol):
         """Generate raw text output from the model."""
         ...
 
-    async def upload_file(self, file_path: str) -> Any:
-        """Upload a file to the provider's storage."""
-        ...
-
-    async def delete_file(self, file_reference: Any) -> None:
-        """Delete a file from the provider's storage."""
-        ...
-
     async def delete_cache(self, cache_name: str) -> None:
         """Delete a context cache from the provider."""
         ...

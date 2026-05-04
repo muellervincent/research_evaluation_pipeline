@@ -10,6 +10,14 @@ from loguru import logger
 
 from .core.artifact_store import ArtifactStore
 from .core.enums import PipelineStage
+from .core.resource_loader import (
+    load_client_profile,
+    load_execution_profile,
+    load_ground_truth,
+    load_paper,
+    load_prompt,
+    ResourceLoaderError,
+)
 from .runner import PipelineRunner, RunnerError
 
 EXECUTION_PROFILES_PATH = Path("resources/profiles/execution.toml")
@@ -26,7 +34,7 @@ def run_pipeline(
         "standard", "--profile", help="Name of the strategy profile to use"
     ),
     client_profile: str = typer.Option(
-        "unpaid", "--client-profile", help="Name of the client profile to use"
+        "gemini-paid", "--client-profile", help="Name of the client profile to use"
     ),
     paper_path: Path = typer.Option(..., "--paper-path", help="Path to the source PDF"),
     prompt_path: Path = typer.Option(..., "--prompt-path", help="Path to the criteria file"),
@@ -46,22 +54,27 @@ def run_pipeline(
     """
     Execute the entire research assessment and diagnostic pipeline end-to-end.
     """
-    runner = PipelineRunner(
-        execution_profiles_path=execution_profiles, client_profiles_path=client_profiles
-    )
-
     try:
+        # 1. Load Resources (Stateless Extraction)
+        paper_stem, paper_bytes = load_paper(paper_path)
+        master_prompt = load_prompt(prompt_path, prompt_key)
+        profile = load_execution_profile(execution_profiles, profile_name)
+        client_settings = load_client_profile(client_profiles, client_profile)
+        ground_truth = load_ground_truth(ground_truth_path, paper_stem)
+
+        # 2. Execute via Runner
+        runner = PipelineRunner()
         asyncio.run(
             runner.run_pipeline(
-                paper_path=paper_path,
-                prompt_path=prompt_path,
-                ground_truth_path=ground_truth_path,
-                profile_name=profile_name,
-                client_profile_name=client_profile,
-                prompt_key=prompt_key,
+                paper_stem=paper_stem,
+                paper_bytes=paper_bytes,
+                master_prompt=master_prompt,
+                profile=profile,
+                client_profile=client_settings,
+                ground_truth=ground_truth,
             )
         )
-    except RunnerError as error:
+    except (ResourceLoaderError, RunnerError) as error:
         logger.error(error)
         raise typer.Exit(1)
 
@@ -72,7 +85,7 @@ def run_stage(
         ..., help="Stage to run (preprocess, assessment, diagnostic, results)"
     ),
     client_profile: str = typer.Option(
-        "unpaid", "--client-profile", help="Name of the client profile to use"
+        "gemini-paid", "--client-profile", help="Name of the client profile to use"
     ),
     profile_name: str = typer.Option("standard", "--profile", help="Name of the profile to use"),
     paper_path: Path = typer.Option(..., "--paper-path", help="Path to the source PDF"),
@@ -93,23 +106,28 @@ def run_stage(
     """
     Execute a single stage of the research pipeline.
     """
-    runner = PipelineRunner(
-        execution_profiles_path=execution_profiles, client_profiles_path=client_profiles
-    )
-
     try:
+        # 1. Load Resources
+        paper_stem, paper_bytes = load_paper(paper_path)
+        master_prompt = load_prompt(prompt_path, prompt_key)
+        profile = load_execution_profile(execution_profiles, profile_name)
+        client_settings = load_client_profile(client_profiles, client_profile)
+        ground_truth = load_ground_truth(ground_truth_path, paper_stem)
+
+        # 2. Execute via Runner
+        runner = PipelineRunner()
         asyncio.run(
             runner.run_stage(
                 stage=stage,
-                paper_path=paper_path,
-                prompt_path=prompt_path,
-                ground_truth_path=ground_truth_path,
-                profile_name=profile_name,
-                client_profile_name=client_profile,
-                prompt_key=prompt_key,
+                paper_stem=paper_stem,
+                paper_bytes=paper_bytes,
+                master_prompt=master_prompt,
+                profile=profile,
+                client_profile=client_settings,
+                ground_truth=ground_truth,
             )
         )
-    except RunnerError as error:
+    except (ResourceLoaderError, RunnerError) as error:
         logger.error(error)
         raise typer.Exit(1)
 
@@ -122,7 +140,7 @@ def run_step(
     ),
     profile_name: str = typer.Option("standard", "--profile", help="Name of the profile to use"),
     client_profile: str = typer.Option(
-        "unpaid", "--client-profile", help="Name of the client profile to use"
+        "gemini-paid", "--client-profile", help="Name of the client profile to use"
     ),
     paper_path: Path = typer.Option(..., "--paper-path", help="Path to the source PDF"),
     prompt_path: Path = typer.Option(..., "--prompt-path", help="Path to the criteria file"),
@@ -142,24 +160,29 @@ def run_step(
     """
     Execute a granular atomic step with strict prerequisite validation.
     """
-    runner = PipelineRunner(
-        execution_profiles_path=execution_profiles, client_profiles_path=client_profiles
-    )
-
     try:
+        # 1. Load Resources
+        paper_stem, paper_bytes = load_paper(paper_path)
+        master_prompt = load_prompt(prompt_path, prompt_key)
+        profile = load_execution_profile(execution_profiles, profile_name)
+        client_settings = load_client_profile(client_profiles, client_profile)
+        ground_truth = load_ground_truth(ground_truth_path, paper_stem)
+
+        # 2. Execute via Runner
+        runner = PipelineRunner()
         asyncio.run(
             runner.run_step(
                 stage=stage,
                 step=step,
-                paper_path=paper_path,
-                prompt_path=prompt_path,
-                ground_truth_path=ground_truth_path,
-                profile_name=profile_name,
-                client_profile_name=client_profile,
-                prompt_key=prompt_key,
+                paper_stem=paper_stem,
+                paper_bytes=paper_bytes,
+                master_prompt=master_prompt,
+                profile=profile,
+                client_profile=client_settings,
+                ground_truth=ground_truth,
             )
         )
-    except RunnerError as error:
+    except (ResourceLoaderError, RunnerError) as error:
         logger.error(error)
         raise typer.Exit(1)
 

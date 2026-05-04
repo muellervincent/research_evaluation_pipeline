@@ -9,8 +9,7 @@ from google.genai import types
 from loguru import logger
 from pydantic import BaseModel
 
-from ..core.domain import PaperContext
-from ..core.enums import IngestionMode
+from ..core.paper_context import PaperContext
 from .provider_protocol import ModelProvider
 
 
@@ -178,20 +177,7 @@ class GeminiProvider(ModelProvider):
         contents = []
 
         if paper_context and not paper_context.has_model_cache(model_name):
-            if paper_context.ingestion_mode == IngestionMode.EXTRACTION and paper_context.raw_text:
-                contents.append(
-                    types.Part.from_text(
-                        text=f"RESEARCH PAPER MARKDOWN:\n\n{paper_context.raw_text}"
-                    )
-                )
-            elif paper_context.uploaded_file:
-                contents.append(paper_context.uploaded_file)
-                contents.append(
-                    types.Part.from_text(
-                        text="I have provided the research paper as a file attachment for your analysis."
-                    )
-                )
-            elif paper_context.raw_text:
+            if paper_context.raw_text:
                 contents.append(
                     types.Part.from_text(
                         text=f"RESEARCH PAPER MARKDOWN:\n\n{paper_context.raw_text}"
@@ -214,37 +200,9 @@ class GeminiProvider(ModelProvider):
         contents.append(types.Part.from_text(text=prompt_text))
         return contents
 
-    async def upload_file(self, file_path: str) -> Any:
-        """
-        Upload a file to the Gemini File Application Programming Interface.
-
-        Args:
-            file_path: Absolute path to the local file.
-
-        Returns:
-            The file metadata object returned by the API.
-        """
-        logger.info(f"Uploading file to Gemini File Application Programming Interface: {file_path}")
-        file_result = await self.client.aio.files.upload(file=file_path)
-        return file_result
-
-    async def delete_file(self, file_reference: Any) -> None:
-        """
-        Remove a file from the Gemini File API.
-
-        Args:
-            file_reference: The file object or identifier.
-        """
-        if file_reference and hasattr(file_reference, "name"):
-            logger.info(f"Deleting Gemini file reference: {file_reference.name}")
-            try:
-                await self.client.aio.files.delete(name=file_reference.name)
-            except Exception as error:
-                logger.error(f"Failed to delete file {file_reference.name}: {error}")
-
     async def delete_cache(self, cache_name: str) -> None:
         """
-        Remove a Context Cache from the Application Programming Interface.
+        Remove a Context Cache from the API.
 
         Args:
             cache_name: The unique resource name of the cache.
@@ -277,7 +235,9 @@ class GeminiProvider(ModelProvider):
                 )
                 cache = await self.client.aio.caches.create(
                     model=model_name,
-                    config=types.CreateCachedContentConfig(contents=contents, ttl=self.CACHE_TIME_TO_LIVE),
+                    config=types.CreateCachedContentConfig(
+                        contents=contents, ttl=self.CACHE_TIME_TO_LIVE
+                    ),
                 )
                 logger.info(f"Context Cache created successfully. Name: {cache.name}")
                 return cache.name
@@ -302,18 +262,7 @@ class GeminiProvider(ModelProvider):
         contents_to_cache = []
 
         if isinstance(content, PaperContext):
-            if content.ingestion_mode == IngestionMode.EXTRACTION and content.raw_text:
-                contents_to_cache.append(
-                    types.Part.from_text(text=f"RESEARCH PAPER MARKDOWN:\n\n{content.raw_text}")
-                )
-            elif content.uploaded_file:
-                contents_to_cache.append(content.uploaded_file)
-                contents_to_cache.append(
-                    types.Part.from_text(
-                        text="I have provided the research paper as a file attachment for your analysis."
-                    )
-                )
-            elif content.raw_text:
+            if content.raw_text:
                 contents_to_cache.append(
                     types.Part.from_text(text=f"RESEARCH PAPER MARKDOWN:\n\n{content.raw_text}")
                 )
@@ -351,7 +300,4 @@ class GeminiProvider(ModelProvider):
                 await self.delete_cache(cache_name)
                 del context.model_caches[cache_model]
 
-        if context.uploaded_file:
-            await self.delete_file(context.uploaded_file)
-            context.uploaded_file = None
         logger.info("Pipeline resource cleanup complete.")

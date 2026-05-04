@@ -1,5 +1,5 @@
 [standard]
-ingestion_mode = "extraction"
+ingestion_mode = "md"
 
 [standard.preprocess.refinement]
 model = "gemini-3.1-pro-preview"
@@ -52,7 +52,7 @@ strategy = "diagnose-mismatches"
 processing_mode = "concurrent"
 
 [lite]
-ingestion_mode = "extraction"
+ingestion_mode = "md"
 
 [lite.preprocess.refinement]
 model = "gemini-3.1-pro-preview"
@@ -105,7 +105,7 @@ strategy = "diagnose-all"
 processing_mode = "concurrent"
 
 [pro]
-ingestion_mode = "extraction"
+ingestion_mode = "md"
 
 [pro.preprocess.refinement]
 model = "gemini-3.1-pro-preview"
@@ -153,6 +153,62 @@ strategy = "thematic"
 [pro.diagnostic.analysis]
 model = "gemini-3.1-pro-preview"
 temperature = 0.3
+cache_policy = "use-cache"
+strategy = "diagnose-mismatches"
+processing_mode = "concurrent"
+
+
+
+
+[custom]
+ingestion_mode = "pdf"
+
+[custom.preprocess.refinement]
+model = "gemini-3.1-pro-preview"
+temperature = 0.2
+cache_policy = "use-cache"
+strategy = "semantic"
+
+[custom.preprocess.extraction]
+model = "gemini-3.1-pro-preview"
+temperature = 0.0
+cache_policy = "use-cache"
+
+[custom.assessment]
+fragmentation = "plan"
+
+[custom.assessment.decomposition]
+model = "gemini-3.1-pro-preview"
+temperature = 0.3
+cache_policy = "use-cache"
+strategy = "structural"
+
+[custom.assessment.extraction]
+model = "gemini-3-flash-preview"
+temperature = 0.1
+cache_policy = "use-cache"
+strategy = "standard"
+processing_mode = "concurrent"
+
+[custom.assessment.synthesis]
+model = "gemini-3-flash-preview"
+temperature = 0.3
+cache_policy = "use-cache"
+strategy = "analytical"
+
+[custom.diagnostic]
+fragmentation = "plan"
+prompt_source = "refined"
+
+[custom.diagnostic.decomposition]
+model = "gemini-3.1-pro-preview"
+temperature = 0.3
+cache_policy = "use-cache"
+strategy = "thematic"
+
+[custom.diagnostic.analysis]
+model = "gemini-3.1-pro-preview"
+temperature = 0.2
 cache_policy = "use-cache"
 strategy = "diagnose-mismatches"
 processing_mode = "concurrent"

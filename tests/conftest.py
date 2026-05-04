@@ -79,7 +79,7 @@ def mock_prompt_registry():
 def pipeline_profile():
     """Provides a realistic PipelineProfile for testing."""
     return PipelineProfile(
-        ingestion_mode=IngestionMode.EXTRACTION,
+        ingestion_mode=IngestionMode.MD,
         preprocess=PreprocessProfile(
             refinement=RefinementSettings(model=ModelName.GEMINI_3_FLASH_PREVIEW),
             extraction=StepSettings(model=ModelName.GEMINI_3_FLASH_PREVIEW),

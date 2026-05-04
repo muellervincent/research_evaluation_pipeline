@@ -10,7 +10,7 @@ from loguru import logger
 from ...clients.provider_protocol import ModelProvider
 from ...config.execution_settings import DiagnosticProfile
 from ...config.prompt_registry import PromptRegistry
-from ...core.domain import PaperContext
+from ...core.paper_context import PaperContext
 from .models import Decomposition, Analysis, FastDiagnostic
 from .schemas import DiagnosticReport, DiagnosticGroup, DiagnosticTaskList
 

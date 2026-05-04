@@ -8,15 +8,13 @@ All methods that mutate state are idempotent — calling them multiple times is 
 incurs only a guard-check overhead on subsequent calls.
 """
 
-from pathlib import Path
-
 from loguru import logger
 
 from ..clients.provider_protocol import ModelProvider
 from ..config.execution_settings import PipelineProfile
 from ..core.artifact_store import ArtifactStore
-from ..core.domain import PaperContext
 from ..core.enums import IngestionMode
+from ..core.paper_context import PaperContext
 from .artifact_key_builder import ArtifactKeyBuilder
 
 
@@ -45,7 +43,9 @@ class PaperContextService:
         self._key_builder = key_builder
         self._profile = profile
 
-    async def build_initial_context(self, pdf_path: Path) -> PaperContext:
+    async def build_initial_context(
+        self, paper_stem: str, raw_bytes: bytes | None = None
+    ) -> PaperContext:
         """
         Creates a minimal PaperContext.
 
@@ -53,55 +53,46 @@ class PaperContextService:
         previously extracted markdown text from the artifact store so that model
         calls can use text rather than a binary upload.
 
-        No binary loading, file uploads, or Application Programming Interface caching occur at this stage.
+        No file uploads or API caching occur at this stage.
 
         Args:
-            pdf_path: The filesystem path to the source PDF.
+            paper_stem: The identifier for the paper.
+            raw_bytes: Optional raw PDF bytes.
         """
-        if not pdf_path.exists():
-            raise FileNotFoundError(f"PDF not found: {pdf_path}")
+        paper_context = PaperContext(paper_stem=paper_stem, raw_bytes=raw_bytes)
 
-        paper_context = PaperContext(pdf_path=pdf_path, ingestion_mode=self._profile.ingestion_mode)
+        await self.restore_extracted_markdown(paper_context)
 
-        if paper_context.ingestion_mode == IngestionMode.EXTRACTION:
+        return paper_context
+
+    async def restore_extracted_markdown(self, paper_context: PaperContext) -> None:
+        """
+        Populates the raw_text field of the PaperContext from the artifact store.
+
+        This ensures that if a paper has already been extracted, the subsequent
+        pipeline stages use the structured Markdown rather than the original PDF.
+        """
+        if self._profile.ingestion_mode == IngestionMode.MD:
             extraction_key = self._key_builder.preprocess_extract_key()
             cached_extraction = self._artifact_store.get_artifact(extraction_key)
             if cached_extraction:
                 logger.info(
-                    f"Restored extracted markdown for {paper_context.paper_stem} from artifact store."
+                    f"Restoring extracted markdown for {paper_context.paper_stem} from artifact store."
                 )
                 paper_context.raw_text = cached_extraction.get("content")
-
-        return paper_context
 
     async def prepare_for_model_execution(self, paper_context: PaperContext) -> None:
         """
         Ensures the paper context is ready for direct model interaction.
 
-        Loads PDF bytes from disk if not already present.
-        Uploads the file to the provider's File Application Programming Interface if the ingestion mode is UPLOAD
-        and no upload reference exists yet.
+        Ensures bytes are already present in the context.
 
         Idempotent: repeated calls are no-ops after the first successful preparation.
         """
         if paper_context.raw_bytes is None:
-            logger.debug(f"Loading PDF bytes from {paper_context.pdf_path}")
-            paper_context.raw_bytes = Path(paper_context.pdf_path).read_bytes()
+            logger.warning(f"PaperContext for {paper_context.paper_stem} has no bytes.")
 
-        if (
-            paper_context.ingestion_mode == IngestionMode.UPLOAD
-            and paper_context.uploaded_file is None
-        ):
-            logger.debug(
-                f"Uploading {paper_context.pdf_path} to provider File Application Programming Interface"
-            )
-            paper_context.uploaded_file = await self._provider.upload_file(
-                str(paper_context.pdf_path)
-            )
-
-    async def ensure_application_programming_interface_cache(
-        self, paper_context: PaperContext, model_name: str
-    ) -> None:
+    async def ensure_api_cache(self, paper_context: PaperContext, model_name: str) -> None:
         """
         Creates a provider-side context cache entry for the paper if one does not exist.
 

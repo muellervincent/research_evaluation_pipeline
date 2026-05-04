@@ -7,7 +7,7 @@ import json
 from ...clients.provider_protocol import ModelProvider
 from ...config.execution_settings import DiagnosticAnalysisSettings, DiagnosticDecompositionSettings
 from ...config.prompt_registry import PromptRegistry, PromptTemplate
-from ...core.domain import PaperContext
+from ...core.paper_context import PaperContext
 from ..protocol import Model
 from .schemas import DiagnosticGroup, DiagnosticReport, DiagnosticTaskList
 

@@ -8,7 +8,7 @@ from ...config.prompt_registry import PromptRegistry
 from ...config.execution_settings import StepSettings, RefinementSettings
 from ..protocol import Model
 from .schemas import ExtractionResult, RefinementResult
-from ...core.domain import PaperContext
+from ...core.paper_context import PaperContext
 
 
 class Extraction(Model[ExtractionResult]):

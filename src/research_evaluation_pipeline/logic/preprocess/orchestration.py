@@ -5,12 +5,12 @@ Coordinates concurrent document ingestion and prompt refinement.
 
 from loguru import logger
 
-from typing import Any
+from research_evaluation_pipeline.logic.preprocess.schemas import ExtractionResult, RefinementResult
 
 from ...clients.provider_protocol import ModelProvider
-from ...config.prompt_registry import PromptRegistry
 from ...config.execution_settings import PreprocessProfile
-from ...core.domain import PaperContext
+from ...config.prompt_registry import PromptRegistry
+from ...core.paper_context import PaperContext
 from .models import Extraction, Refinement
 
 
@@ -38,7 +38,7 @@ class PreprocessLogic:
         self.extraction = Extraction(profile.extraction, prompt_registry)
         self.refinement = Refinement(profile.refinement, prompt_registry)
 
-    async def refine_prompt(self, master_prompt: str) -> Any:
+    async def refine_prompt(self, master_prompt: str) -> RefinementResult:
         """
         Execute the prompt refinement step to clean and structure the criteria.
 
@@ -52,7 +52,7 @@ class PreprocessLogic:
         prompt = self.refinement.build_prompt(master_prompt)
         return await self.refinement.generate(self.provider, prompt)
 
-    async def extract_paper(self, paper_context: PaperContext) -> Any:
+    async def extract_paper(self, paper_context: PaperContext) -> ExtractionResult:
         """
         Execute the document extraction step to convert PDF to Markdown.
 

@@ -58,8 +58,8 @@ class IngestionMode(SanitizedEnum):
     Methods for providing research paper content to the AI model.
     """
 
-    EXTRACTION = "extraction"
-    UPLOAD = "upload"
+    MD = "md"
+    PDF = "pdf"
 
 
 class ProcessingMode(SanitizedEnum):

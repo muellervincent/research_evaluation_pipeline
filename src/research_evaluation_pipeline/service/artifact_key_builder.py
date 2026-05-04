@@ -41,6 +41,16 @@ class ArtifactKeyBuilder:
         self._refinement_strategy = profile.preprocess.refinement.strategy.value_sanitized
         self._ingestion_mode = profile.ingestion_mode.value_sanitized
 
+    @property
+    def paper_stem(self) -> str:
+        """The identifier for the paper being processed."""
+        return self._stem
+
+    @property
+    def master_prompt_key(self) -> str:
+        """The identifier for the assessment criteria."""
+        return self._master_prompt_key
+
     def _hash_input(self, data: Any) -> str:
         """
         Generate an 8-character hex digest of the input data.

@@ -14,8 +14,8 @@ from ..clients.provider_protocol import ModelProvider
 from ..config.execution_settings import PipelineProfile
 from ..config.prompt_registry import PromptRegistry
 from ..core.artifact_store import ArtifactStore
-from ..core.domain import PaperContext
 from ..core.enums import CachePolicy
+from ..core.paper_context import PaperContext
 from ..logic.assessment.orchestration import AssessmentLogic
 from ..logic.assessment.schemas import (
     AssessmentEvidenceReport,
@@ -58,8 +58,6 @@ class MasterOrchestrator:
         key_builder: ArtifactKeyBuilder,
         paper_context_service: PaperContextService,
         step_executor: StepExecutor,
-        paper_stem: str,
-        master_prompt_key: str,
     ):
         """
         Initialize the orchestrator with all necessary services and configuration.
@@ -72,8 +70,6 @@ class MasterOrchestrator:
             key_builder: The generator for deterministic artifact keys.
             paper_context_service: The service managing document lifecycle.
             step_executor: The engine for dispatching pipeline steps.
-            paper_stem: The identifier for the paper.
-            master_prompt_key: The identifier for the assessment criteria.
         """
         self.provider = provider
         self.profile = profile
@@ -82,8 +78,6 @@ class MasterOrchestrator:
         self.key_builder = key_builder
         self.paper_context_service = paper_context_service
         self.step_executor = step_executor
-        self.paper_stem = paper_stem
-        self.master_prompt_key = master_prompt_key
 
         self.preprocess = PreprocessLogic(provider, profile.preprocess, prompt_registry)
         self.assessment = AssessmentLogic(provider, profile.assessment, prompt_registry)
@@ -381,5 +375,3 @@ class MasterOrchestrator:
                 return None
 
         return DiagnosticReport(analyses=all_analyses)
-
-

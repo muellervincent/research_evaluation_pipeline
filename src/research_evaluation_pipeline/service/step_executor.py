@@ -4,7 +4,7 @@ Step Executor.
 Owns all cross-cutting concerns that sit between the CLI and the model-facing orchestrator:
 - Artifact dependency resolution (loading prerequisites from the artifact store).
 - Group iteration and concurrency dispatch (concurrent vs sequential).
-- Domain mapping utilities for diagnostic (ID resolution, detail filtering).
+- Paper Context mapping utilities for diagnostic (ID resolution, detail filtering).
 
 Both the MasterOrchestrator (for full-stage runs) and the CLI (for atomic step runs)
 delegate to this class, ensuring identical behaviour at every abstraction level.
@@ -17,10 +17,15 @@ from loguru import logger
 
 from ..config.execution_settings import PipelineProfile
 from ..core.artifact_store import ArtifactStore
-from ..core.domain import PaperContext
-from ..core.enums import DiagnosticAnalysisStrategy, RefinementStrategy
-from ..logic.diagnostic.schemas import DiagnosticItem, DiagnosticGroup, DiagnosticTaskList
-from ..logic.assessment.schemas import AssessmentAnswer, AssessmentEvidenceReport, AssessmentGroup, AssessmentTaskList
+from ..core.enums import DiagnosticAnalysisStrategy, DiagnosticPromptSource, RefinementStrategy
+from ..core.paper_context import PaperContext
+from ..logic.assessment.schemas import (
+    AssessmentAnswer,
+    AssessmentEvidenceReport,
+    AssessmentGroup,
+    AssessmentTaskList,
+)
+from ..logic.diagnostic.schemas import DiagnosticGroup, DiagnosticItem, DiagnosticTaskList
 from ..logic.preprocess.schemas import RefinementResult
 from .artifact_key_builder import ArtifactKeyBuilder
 
@@ -108,7 +113,9 @@ class StepExecutor:
 
         return AssessmentTaskList(**artifact_data)
 
-    def require_diagnostic_task_list(self, prompt: str, assessment_details: list[dict]) -> DiagnosticTaskList:
+    def require_diagnostic_task_list(
+        self, prompt: str, assessment_details: list[dict]
+    ) -> DiagnosticTaskList:
         """
         Load and validate the diagnostic decomposition artifact.
 
@@ -132,7 +139,9 @@ class StepExecutor:
 
         return DiagnosticTaskList(**artifact_data)
 
-    def require_assessment_evidence_reports(self, task_list: AssessmentTaskList) -> list[AssessmentEvidenceReport]:
+    def require_assessment_evidence_reports(
+        self, task_list: AssessmentTaskList
+    ) -> list[AssessmentEvidenceReport]:
         """
         Load all assessment extraction artifacts for a specific task list.
 
@@ -160,8 +169,6 @@ class StepExecutor:
 
         return evidence_reports
 
-
-
     async def dispatch_assessment_groups(
         self, task_list: AssessmentTaskList, paper_context: PaperContext
     ) -> list[AssessmentAnswer]:
@@ -185,7 +192,7 @@ class StepExecutor:
             logger.info("Running assessment groups concurrently (bounded)...")
             grouped_answers = await self.gather_concurrently(
                 [process_group(group) for group in task_list.groups], limit=2
-              )
+            )
         else:
             logger.info("Running assessment groups sequentially...")
             grouped_answers = []
@@ -195,10 +202,7 @@ class StepExecutor:
         return [answer for answer_list in grouped_answers for answer in answer_list]
 
     async def dispatch_diagnostic_groups(
-        self,
-        task_list: DiagnosticTaskList,
-        paper_context: PaperContext,
-        assessment_prompt: str,
+        self, task_list: DiagnosticTaskList, paper_context: PaperContext, assessment_prompt: str
     ) -> list[DiagnosticItem]:
         """
         Coordinate the execution of analysis for diagnostic groups.
@@ -231,7 +235,9 @@ class StepExecutor:
 
         return [item for sub_list in grouped_results for item in sub_list]
 
-    async def gather_concurrently(self, coroutines: list[Awaitable[TaskResultType]], limit: int = 2) -> list[TaskResultType]:
+    async def gather_concurrently(
+        self, coroutines: list[Awaitable[TaskResultType]], limit: int = 2
+    ) -> list[TaskResultType]:
         """
         Execute multiple asynchronous tasks with a concurrency limit.
 
@@ -253,6 +259,25 @@ class StepExecutor:
 
         return await asyncio.gather(*(bounded_coroutine(coroutine) for coroutine in coroutines))
 
+    def resolve_diagnostic_prompt(self, master_prompt: str) -> str:
+        """
+        Determine the assessment prompt based on the diagnostic configuration.
+
+        Args:
+            master_prompt: The raw assessment criteria.
+
+        Returns:
+            The resolved prompt text.
+        """
+        if (
+            self._profile.diagnostic
+            and self._profile.diagnostic.prompt_source == DiagnosticPromptSource.REFINED
+        ):
+            refinement_result = self.require_refinement_result()
+            return refinement_result.refined_prompt
+
+        return master_prompt
+
     def get_identifier_mapping(self) -> dict[str, str | None]:
         """
         Retrieve the semantic-to-original identifier mapping from the refinement phase.
@@ -273,7 +298,9 @@ class StepExecutor:
 
         return identifier_mapping
 
-    def resolve_original_identifier(self, question_identifier: str, identifier_mapping: dict[str, str | None]) -> str:
+    def resolve_original_identifier(
+        self, question_identifier: str, identifier_mapping: dict[str, str | None]
+    ) -> str:
         """
         Map a generated question identifier back to its source document label.
 
@@ -315,10 +342,14 @@ class StepExecutor:
 
         for assessment_detail in assessment_details:
             question_identifier = assessment_detail["question_id"]
-            resolved_identifier = self.resolve_original_identifier(question_identifier, identifier_mapping)
+            resolved_identifier = self.resolve_original_identifier(
+                question_identifier, identifier_mapping
+            )
             expected_answer = ground_truth.get(resolved_identifier)
             is_correct_answer = (
-                assessment_detail["answer"] == expected_answer if expected_answer is not None else None
+                assessment_detail["answer"] == expected_answer
+                if expected_answer is not None
+                else None
             )
             assessment_detail["correct"] = is_correct_answer
             assessment_detail["model_answer"] = assessment_detail.pop("answer", None)
@@ -328,20 +359,30 @@ class StepExecutor:
         if target == DiagnosticAnalysisStrategy.DIAGNOSE_ALL:
             return assessment_details
         elif target == DiagnosticAnalysisStrategy.DIAGNOSE_MISMATCHES:
-            return [assessment_detail for assessment_detail in assessment_details if assessment_detail.get("correct") is False]
+            return [
+                assessment_detail
+                for assessment_detail in assessment_details
+                if assessment_detail.get("correct") is False
+            ]
         elif target == DiagnosticAnalysisStrategy.DIAGNOSE_MATCHES:
-            return [assessment_detail for assessment_detail in assessment_details if assessment_detail.get("correct") is True]
+            return [
+                assessment_detail
+                for assessment_detail in assessment_details
+                if assessment_detail.get("correct") is True
+            ]
         elif target == DiagnosticAnalysisStrategy.DIAGNOSE_OVERPREDICTIONS:
             return [
                 assessment_detail
                 for assessment_detail in assessment_details
-                if assessment_detail["model_answer"] is True and assessment_detail["ground_truth_answer"] is False
+                if assessment_detail["model_answer"] is True
+                and assessment_detail["ground_truth_answer"] is False
             ]
         elif target == DiagnosticAnalysisStrategy.DIAGNOSE_UNDERPREDICTIONS:
             return [
                 assessment_detail
                 for assessment_detail in assessment_details
-                if assessment_detail["model_answer"] is False and assessment_detail["ground_truth_answer"] is True
+                if assessment_detail["model_answer"] is False
+                and assessment_detail["ground_truth_answer"] is True
             ]
 
         return assessment_details

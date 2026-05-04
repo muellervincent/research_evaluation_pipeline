@@ -8,7 +8,7 @@ from loguru import logger
 from ...clients.provider_protocol import ModelProvider
 from ...config.prompt_registry import PromptRegistry
 from ...config.execution_settings import AssessmentProfile
-from ...core.domain import PaperContext
+from ...core.paper_context import PaperContext
 from .models import (
     Decomposition,
     Extraction,

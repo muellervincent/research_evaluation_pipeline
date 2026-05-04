@@ -11,7 +11,7 @@ from research_evaluation_pipeline.logic.assessment.schemas import (
     AssessmentTask,
     AssessmentEvidenceReport
 )
-from research_evaluation_pipeline.core.domain import PaperContext
+from research_evaluation_pipeline.core.paper_context import PaperContext
 from research_evaluation_pipeline.core.enums import IngestionMode, ProcessingMode
 from pathlib import Path
 
@@ -28,7 +28,7 @@ async def test_dispatch_assessment_groups_sequential(orchestrator):
         AssessmentGroup(group_name="G2", tasks=[AssessmentTask(question_id="Q2", question_text="T2")]),
     ])
     
-    paper_context = PaperContext(pdf_path=Path("test.pdf"), ingestion_mode=IngestionMode.EXTRACTION)
+    paper_context = PaperContext(paper_stem="test_paper")
     
     orchestrator.execute_assessment_extraction = AsyncMock(side_effect=[
         AssessmentEvidenceReport(group_name="G1", evidence_items=[]),
@@ -61,7 +61,7 @@ async def test_dispatch_assessment_groups_concurrent(orchestrator):
         AssessmentGroup(group_name="G3", tasks=[]),
     ])
     
-    paper_context = PaperContext(pdf_path=Path("test.pdf"), ingestion_mode=IngestionMode.EXTRACTION)
+    paper_context = PaperContext(paper_stem="test_paper")
     
     orchestrator.execute_assessment_extraction = AsyncMock(return_value=AssessmentEvidenceReport(group_name="any", evidence_items=[]))
     orchestrator.execute_assessment_synthesis = AsyncMock(return_value=MagicMock(answers=[AssessmentAnswer(question_id="any", answer=True)]))

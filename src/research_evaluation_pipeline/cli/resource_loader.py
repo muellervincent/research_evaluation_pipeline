@@ -9,6 +9,7 @@ from pathlib import Path
 
 import tomli
 import yaml
+from loguru import logger
 
 from ..config.client_settings import ClientProfile
 from ..config.execution_settings import PipelineProfile
@@ -119,9 +120,5 @@ def load_ground_truth(ground_truth_path: Path | None, paper_stem: str) -> dict[s
                         ground_truth_data[f"{prompt_number}."] = answer_value
         return ground_truth_data if ground_truth_data else None
     except Exception as error:
-        # We don't want to crash the whole pipeline if ground truth fails to load
-        # as it is only needed for diagnostic analysis targeting mismatches.
-        from loguru import logger
-
         logger.error(f"Failed to load ground truth from {ground_truth_path}: {error}")
         return None

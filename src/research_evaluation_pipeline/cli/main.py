@@ -8,17 +8,22 @@ from pathlib import Path
 import typer
 from loguru import logger
 
-from .core.artifact_store import ArtifactStore
-from .core.enums import PipelineStage
-from .core.resource_loader import (
+from ..core.artifact_store import ArtifactStore
+from ..core.enums import PipelineStage
+from ..runner import PipelineRunner, RunnerError
+from .convenience import (
+    capture_current_artifacts,
+    clear_convenience_data,
+    restore_default_convenience_data,
+)
+from .resource_loader import (
+    ResourceLoaderError,
     load_client_profile,
     load_execution_profile,
     load_ground_truth,
     load_paper,
     load_prompt,
-    ResourceLoaderError,
 )
-from .runner import PipelineRunner, RunnerError
 
 EXECUTION_PROFILES_PATH = Path("resources/profiles/execution.toml")
 CLIENT_PROFILES_PATH = Path("resources/profiles/client.toml")
@@ -212,8 +217,6 @@ def database_seed():
     """
     Re-inject pre-calculated artifacts from resources/convenience into the database.
     """
-    from .convenience import restore_default_convenience_data
-
     restore_default_convenience_data()
     typer.echo("Convenience artifacts restored.")
 
@@ -227,8 +230,6 @@ def database_capture(
     """
     Export database artifacts into the resources/convenience directory.
     """
-    from .convenience import capture_current_artifacts
-
     capture_current_artifacts(keys=keys)
     typer.echo("Artifacts captured to resources/convenience.")
 
@@ -238,8 +239,6 @@ def database_clear_convenience():
     """
     Wipe all serialized artifacts from the resources/convenience directory.
     """
-    from .convenience import clear_convenience_data
-
     clear_convenience_data()
     typer.echo("Convenience directory wiped.")
 

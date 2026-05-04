@@ -5,7 +5,7 @@
 
 PROFILE="${1:-custom}"
 CLIENT_PROFILE="${2:-gemini-paid}"
-PAPER_PATH="${3:-resources/papers/0214.pdf}"
+PAPER_PATH="${3:-resources/papers/0400.pdf}"
 PROMPT_PATH="${4:-resources/prompts_master.yaml}"
 PROMPT_KEY="${5:-detailed-csv}"
 GROUND_TRUTH_PATH="${6:-resources/correct_answers.csv}"

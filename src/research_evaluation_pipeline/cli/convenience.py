@@ -7,7 +7,7 @@ from pathlib import Path
 
 from loguru import logger
 
-from .core.artifact_store import ArtifactStore
+from ..core.artifact_store import ArtifactStore
 
 CONVENIENCE_ARTIFACTS_DIR = Path("resources/convenience")
 

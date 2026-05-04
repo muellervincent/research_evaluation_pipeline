@@ -4,7 +4,7 @@ Preprocess pure logic models.
 
 from typing import Any
 from ...clients.provider_protocol import ModelProvider
-from ...config.prompt_registry import PromptRegistry
+from ...service.prompt_service import PromptService
 from ...config.execution_settings import StepSettings, RefinementSettings
 from ..protocol import Model
 from .schemas import ExtractionResult, RefinementResult
@@ -16,16 +16,16 @@ class Extraction(Model[ExtractionResult]):
     Logic for converting raw document bytes into structured Markdown text.
     """
 
-    def __init__(self, settings: StepSettings, prompt_registry: PromptRegistry):
+    def __init__(self, settings: StepSettings, prompt_service: PromptService):
         """
         Initialize the extraction model.
 
         Args:
             settings: Hyperparameters and strategy for extraction.
-            prompt_registry: Access to prompt templates.
+            prompt_service: Access to prompt templates.
         """
         self.settings = settings
-        self.prompt_registry = prompt_registry
+        self.prompt_service = prompt_service
 
     def build_prompt(self) -> Any:
         """
@@ -34,7 +34,7 @@ class Extraction(Model[ExtractionResult]):
         Returns:
             The raw PromptTemplate for extraction.
         """
-        return self.prompt_registry.get_prompt("preprocess.extraction")
+        return self.prompt_service.get_prompt("preprocess.extraction")
 
     async def generate(
         self, provider: ModelProvider, prompt: Any, paper_context: PaperContext
@@ -65,16 +65,16 @@ class Refinement(Model[RefinementResult]):
     Logic for cleaning and structuring assessment criteria.
     """
 
-    def __init__(self, settings: RefinementSettings, prompt_registry: PromptRegistry):
+    def __init__(self, settings: RefinementSettings, prompt_service: PromptService):
         """
         Initialize the refinement model.
 
         Args:
             settings: Hyperparameters and strategy for refinement.
-            prompt_registry: Access to prompt templates.
+            prompt_service: Access to prompt templates.
         """
         self.settings = settings
-        self.prompt_registry = prompt_registry
+        self.prompt_service = prompt_service
 
     def build_prompt(self, prompt_text: str) -> Any:
         """
@@ -86,7 +86,7 @@ class Refinement(Model[RefinementResult]):
         Returns:
             A formatted PromptTemplate instance.
         """
-        return self.prompt_registry.get_prompt(
+        return self.prompt_service.get_prompt(
             f"preprocess.refine.{self.settings.strategy.value}"
         ).format(prompt_master_text=prompt_text)
 

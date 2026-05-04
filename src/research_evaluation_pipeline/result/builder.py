@@ -11,7 +11,7 @@ from ..logic.diagnostic.schemas import DiagnosticReport
 from .schemas import FinalPipelineResult, PipelineMetrics, QuestionResult
 
 
-class ResultGenerator:
+class ResultBuilder:
     """
     Generates structured JSON and human-readable Markdown reports from pipeline artifacts.
     """

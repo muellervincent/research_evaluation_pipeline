@@ -1,5 +1,5 @@
 """
-Logging configuration for the research reporting assessment and diagnostic pipeline.
+Logging configuration for the research evaluation and diagnostic pipeline.
 """
 
 import sys

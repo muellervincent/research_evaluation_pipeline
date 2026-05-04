@@ -4,7 +4,7 @@ Atomic building blocks for assessment transformations.
 """
 
 from ...clients.provider_protocol import ModelProvider
-from ...config.prompt_registry import PromptRegistry, PromptTemplate
+from ...service.prompt_service import PromptService, PromptTemplate
 from ...config.execution_settings import (
     AssessmentDecompositionSettings,
     AssessmentExtractionSettings,
@@ -25,16 +25,16 @@ class Decomposition(Model[AssessmentTaskList]):
     Logic for breaking down assessment criteria into cohesive task groups.
     """
 
-    def __init__(self, settings: AssessmentDecompositionSettings, prompt_registry: PromptRegistry):
+    def __init__(self, settings: AssessmentDecompositionSettings, prompt_service: PromptService):
         """
         Initialize the decomposition model with specific strategy and settings.
 
         Args:
             settings: Hyperparameters and strategy for decomposition.
-            prompt_registry: Access to prompt templates.
+            prompt_service: Access to prompt templates.
         """
         self.settings = settings
-        self.prompt_registry = prompt_registry
+        self.prompt_service = prompt_service
 
     def build_prompt(self, refined_prompt_text: str) -> PromptTemplate:
         """
@@ -46,7 +46,7 @@ class Decomposition(Model[AssessmentTaskList]):
         Returns:
             A formatted PromptTemplate instance.
         """
-        return self.prompt_registry.get_prompt(
+        return self.prompt_service.get_prompt(
             f"assessment.decomposition.{self.settings.strategy.value}"
         ).format(prompt_refined_text=refined_prompt_text)
 
@@ -75,16 +75,16 @@ class Extraction(Model[AssessmentEvidenceReport]):
     Logic for locating and extracting verbatim quotes from a document for assessment.
     """
 
-    def __init__(self, settings: AssessmentExtractionSettings, prompt_registry: PromptRegistry):
+    def __init__(self, settings: AssessmentExtractionSettings, prompt_service: PromptService):
         """
         Initialize the extraction model.
 
         Args:
             settings: Hyperparameters and strategy for extraction.
-            prompt_registry: Access to prompt templates.
+            prompt_service: Access to prompt templates.
         """
         self.settings = settings
-        self.prompt_registry = prompt_registry
+        self.prompt_service = prompt_service
 
     def build_prompt(self, group: AssessmentGroup, paper_context: PaperContext) -> tuple[PromptTemplate, PaperContext]:
         """
@@ -98,7 +98,7 @@ class Extraction(Model[AssessmentEvidenceReport]):
             A tuple of the formatted prompt and the paper context.
         """
         questions = "\n".join([f"- {t.question_id}: {t.question_text}" for t in group.tasks])
-        template = self.prompt_registry.get_prompt(
+        template = self.prompt_service.get_prompt(
             f"assessment.extraction.{self.settings.strategy.value}"
         ).format(group_name=group.group_name, questions=questions)
 
@@ -131,16 +131,16 @@ class Synthesis(Model[AssessmentReport]):
     Logic for rendering final assessment decisions based on extracted evidence.
     """
 
-    def __init__(self, settings: AssessmentSynthesisSettings, prompt_registry: PromptRegistry):
+    def __init__(self, settings: AssessmentSynthesisSettings, prompt_service: PromptService):
         """
         Initialize the synthesis model.
 
         Args:
             settings: Hyperparameters and strategy for synthesis.
-            prompt_registry: Access to prompt templates.
+            prompt_service: Access to prompt templates.
         """
         self.settings = settings
-        self.prompt_registry = prompt_registry
+        self.prompt_service = prompt_service
 
     def build_prompt(self, group: AssessmentGroup, evidence: AssessmentEvidenceReport) -> PromptTemplate:
         """
@@ -154,7 +154,7 @@ class Synthesis(Model[AssessmentReport]):
             A formatted PromptTemplate instance.
         """
         criteria = "\n".join([f"{t.question_id}. {t.question_text}" for t in group.tasks])
-        return self.prompt_registry.get_prompt(
+        return self.prompt_service.get_prompt(
             f"assessment.synthesis.{self.settings.strategy.value}"
         ).format(prompt_refined_text=criteria, evidence_json=evidence.model_dump_json(indent=4))
 
@@ -183,16 +183,16 @@ class FastAssessment(Model[AssessmentReport]):
     Logic for a single-pass assessment of the entire document.
     """
 
-    def __init__(self, settings: AssessmentSynthesisSettings, prompt_registry: PromptRegistry):
+    def __init__(self, settings: AssessmentSynthesisSettings, prompt_service: PromptService):
         """
         Initialize the fast assessment model.
 
         Args:
             settings: Hyperparameters and strategy for assessment.
-            prompt_registry: Access to prompt templates.
+            prompt_service: Access to prompt templates.
         """
         self.settings = settings
-        self.prompt_registry = prompt_registry
+        self.prompt_service = prompt_service
 
     def build_prompt(self, refined_prompt: str, paper_context: PaperContext) -> tuple[PromptTemplate, PaperContext]:
         """
@@ -205,7 +205,7 @@ class FastAssessment(Model[AssessmentReport]):
         Returns:
             A tuple of the formatted prompt and the paper context.
         """
-        template = self.prompt_registry.get_prompt(f"assessment.fast.{self.settings.strategy.value}").format(
+        template = self.prompt_service.get_prompt(f"assessment.fast.{self.settings.strategy.value}").format(
             prompt_refined_text=refined_prompt
         )
         return template, paper_context

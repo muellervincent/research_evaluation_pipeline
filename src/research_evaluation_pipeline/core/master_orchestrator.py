@@ -12,10 +12,6 @@ from loguru import logger
 
 from ..clients.provider_protocol import ModelProvider
 from ..config.execution_settings import PipelineProfile
-from ..config.prompt_registry import PromptRegistry
-from ..core.artifact_store import ArtifactStore
-from ..core.enums import CachePolicy
-from ..core.paper_context import PaperContext
 from ..logic.assessment.orchestration import AssessmentLogic
 from ..logic.assessment.schemas import (
     AssessmentEvidenceReport,
@@ -27,8 +23,12 @@ from ..logic.diagnostic.orchestration import DiagnosticLogic
 from ..logic.diagnostic.schemas import DiagnosticGroup, DiagnosticReport, DiagnosticTaskList
 from ..logic.preprocess.orchestration import PreprocessLogic
 from ..logic.preprocess.schemas import ExtractionResult, RefinementResult
-from .artifact_key_builder import ArtifactKeyBuilder
-from .paper_context_service import PaperContextService
+from ..service.artifact_key_builder import ArtifactKeyBuilder
+from ..service.paper_context_service import PaperContextService
+from ..service.prompt_service import PromptService
+from .artifact_store import ArtifactStore
+from .enums import CachePolicy
+from .paper_context import PaperContext
 from .step_executor import StepExecutor
 
 T = TypeVar("T")
@@ -47,13 +47,14 @@ class MasterOrchestrator:
     - ArtifactKeyBuilder: deterministic cache key construction.
     - PaperContextService: paper bytes, uploads, and API side context caching.
     - StepExecutor: dependency resolution, group dispatch, and concurrency.
+    - PromptService: repository of prompt templates.
     """
 
     def __init__(
         self,
         provider: ModelProvider,
         profile: PipelineProfile,
-        prompt_registry: PromptRegistry,
+        prompt_service: PromptService,
         artifact_store: ArtifactStore,
         key_builder: ArtifactKeyBuilder,
         paper_context_service: PaperContextService,
@@ -65,7 +66,7 @@ class MasterOrchestrator:
         Args:
             provider: The LLM API client.
             profile: The execution settings for this run.
-            prompt_registry: The repository of prompt templates.
+            prompt_service: The service for retrieving prompt templates.
             artifact_store: The persistent cache for results.
             key_builder: The generator for deterministic artifact keys.
             paper_context_service: The service managing document lifecycle.
@@ -73,16 +74,16 @@ class MasterOrchestrator:
         """
         self.provider = provider
         self.profile = profile
-        self.prompt_registry = prompt_registry
+        self.prompt_service = prompt_service
         self.artifact_store = artifact_store
         self.key_builder = key_builder
         self.paper_context_service = paper_context_service
         self.step_executor = step_executor
 
-        self.preprocess = PreprocessLogic(provider, profile.preprocess, prompt_registry)
-        self.assessment = AssessmentLogic(provider, profile.assessment, prompt_registry)
+        self.preprocess = PreprocessLogic(provider, profile.preprocess, prompt_service)
+        self.assessment = AssessmentLogic(provider, profile.assessment, prompt_service)
         if profile.diagnostic:
-            self.diagnostic = DiagnosticLogic(provider, profile.diagnostic, prompt_registry)
+            self.diagnostic = DiagnosticLogic(provider, profile.diagnostic, prompt_service)
         else:
             self.diagnostic = None
 

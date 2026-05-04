@@ -1,5 +1,5 @@
 """
-Prompt template management for the research reporting assessment and diagnostic pipeline.
+Prompt template management for the research evaluation and diagnostic pipeline.
 """
 
 import yaml
@@ -56,7 +56,7 @@ class PromptTemplate:
             )
 
 
-class PromptRegistry:
+class PromptService:
     """
     Loader and access layer for the consolidated prompt repository.
 
@@ -66,7 +66,7 @@ class PromptRegistry:
 
     def __init__(self, yaml_path: Path = DEFAULT_PROMPTS_PATH):
         """
-        Initialize the registry by loading all templates from the filesystem.
+        Initialize the service by loading all templates from the filesystem.
 
         Args:
             yaml_path: The path to the YAML file containing all prompts.

@@ -23,7 +23,7 @@ from research_evaluation_pipeline.config.execution_settings import (
     RefinementSettings,
     StepSettings,
 )
-from research_evaluation_pipeline.config.prompt_registry import PromptRegistry, PromptTemplate
+from research_evaluation_pipeline.service.prompt_service import PromptService, PromptTemplate
 from research_evaluation_pipeline.core.artifact_store import ArtifactStore
 from research_evaluation_pipeline.core.enums import (
     DiagnosticPromptSource,
@@ -32,9 +32,9 @@ from research_evaluation_pipeline.core.enums import (
     ModelName,
 )
 from research_evaluation_pipeline.service.artifact_key_builder import ArtifactKeyBuilder
-from research_evaluation_pipeline.service.master_orchestrator import MasterOrchestrator
+from research_evaluation_pipeline.core.master_orchestrator import MasterOrchestrator
 from research_evaluation_pipeline.service.paper_context_service import PaperContextService
-from research_evaluation_pipeline.service.step_executor import StepExecutor
+from research_evaluation_pipeline.core.step_executor import StepExecutor
 
 
 @pytest.fixture
@@ -64,15 +64,15 @@ def in_memory_store():
 
 
 @pytest.fixture
-def mock_prompt_registry():
-    """Provides a mocked PromptRegistry."""
-    registry = MagicMock(spec=PromptRegistry)
-    registry.get_prompt.return_value = PromptTemplate(
+def mock_prompt_service():
+    """Provides a mocked PromptService."""
+    service = MagicMock(spec=PromptService)
+    service.get_prompt.return_value = PromptTemplate(
         system_text="System instruction",
         user_text="User prompt {variable}",
         coordinates="test.prompt",
     )
-    return registry
+    return service
 
 
 @pytest.fixture
@@ -100,7 +100,7 @@ def pipeline_profile():
 
 
 @pytest.fixture
-def orchestrator(mock_provider, pipeline_profile, mock_prompt_registry, in_memory_store):
+def orchestrator(mock_provider, pipeline_profile, mock_prompt_service, in_memory_store):
     """Provides a MasterOrchestrator instance with mocked dependencies."""
     key_builder = ArtifactKeyBuilder(
         profile=pipeline_profile, paper_stem="test_paper", master_prompt_key="test_prompt"
@@ -118,11 +118,9 @@ def orchestrator(mock_provider, pipeline_profile, mock_prompt_registry, in_memor
     return MasterOrchestrator(
         provider=mock_provider,
         profile=pipeline_profile,
-        prompt_registry=mock_prompt_registry,
+        prompt_service=mock_prompt_service,
         artifact_store=in_memory_store,
         key_builder=key_builder,
         paper_context_service=paper_context_service,
         step_executor=step_executor,
-        paper_stem="test_paper",
-        master_prompt_key="test_prompt",
     )

@@ -6,7 +6,7 @@ Assessment orchestration logic.
 from loguru import logger
 
 from ...clients.provider_protocol import ModelProvider
-from ...config.prompt_registry import PromptRegistry
+from ...service.prompt_service import PromptService
 from ...config.execution_settings import AssessmentProfile
 from ...core.paper_context import PaperContext
 from .models import (
@@ -26,21 +26,21 @@ class AssessmentLogic:
     by managing the lifecycle of specific logic models.
     """
 
-    def __init__(self, provider: ModelProvider, profile: AssessmentProfile, prompt_registry: PromptRegistry):
+    def __init__(self, provider: ModelProvider, profile: AssessmentProfile, prompt_service: PromptService):
         """
         Initialize the assessment logic with necessary providers and settings.
 
         Args:
             provider: The LLM API client.
             profile: The assessment-specific execution profile.
-            prompt_registry: The repository of prompt templates.
+            prompt_service: The repository of prompt templates.
         """
         self.provider = provider
         self.profile = profile
-        self.decomposition = Decomposition(profile.decomposition, prompt_registry)
-        self.extraction = Extraction(profile.extraction, prompt_registry)
-        self.synthesis = Synthesis(profile.synthesis, prompt_registry)
-        self.fast_logic = FastAssessment(profile.synthesis, prompt_registry)
+        self.decomposition = Decomposition(profile.decomposition, prompt_service)
+        self.extraction = Extraction(profile.extraction, prompt_service)
+        self.synthesis = Synthesis(profile.synthesis, prompt_service)
+        self.fast_logic = FastAssessment(profile.synthesis, prompt_service)
 
     async def decompose(self, refined_prompt: str) -> AssessmentTaskList:
         """

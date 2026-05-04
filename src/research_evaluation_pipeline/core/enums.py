@@ -1,5 +1,5 @@
 """
-Global enums for the research reporting assessment and diagnostic pipeline.
+Global enums for the research evaluation and diagnostic pipeline.
 """
 
 from enum import Enum

@@ -9,7 +9,7 @@ from research_evaluation_pipeline.logic.preprocess.schemas import ExtractionResu
 
 from ...clients.provider_protocol import ModelProvider
 from ...config.execution_settings import PreprocessProfile
-from ...config.prompt_registry import PromptRegistry
+from ...service.prompt_service import PromptService
 from ...core.paper_context import PaperContext
 from .models import Extraction, Refinement
 
@@ -23,7 +23,7 @@ class PreprocessLogic:
     """
 
     def __init__(
-        self, provider: ModelProvider, profile: PreprocessProfile, prompt_registry: PromptRegistry
+        self, provider: ModelProvider, profile: PreprocessProfile, prompt_service: PromptService
     ):
         """
         Initialize the preprocess logic with necessary providers and settings.
@@ -31,12 +31,12 @@ class PreprocessLogic:
         Args:
             provider: The LLM API client.
             profile: The preprocess-specific execution profile.
-            prompt_registry: The repository of prompt templates.
+            prompt_service: The repository of prompt templates.
         """
         self.provider = provider
         self.profile = profile
-        self.extraction = Extraction(profile.extraction, prompt_registry)
-        self.refinement = Refinement(profile.refinement, prompt_registry)
+        self.extraction = Extraction(profile.extraction, prompt_service)
+        self.refinement = Refinement(profile.refinement, prompt_service)
 
     async def refine_prompt(self, master_prompt: str) -> RefinementResult:
         """

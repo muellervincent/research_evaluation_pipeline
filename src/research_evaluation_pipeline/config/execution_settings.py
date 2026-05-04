@@ -1,5 +1,5 @@
 """
-Execution settings for the research reporting assessment pipeline.
+Execution settings for the research evaluation pipeline.
 Defines the granular hyperparameters and strategies for different pipeline steps.
 """
 

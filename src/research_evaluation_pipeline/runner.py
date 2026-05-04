@@ -13,15 +13,15 @@ from loguru import logger
 from .clients.factory import ProviderFactory
 from .config.client_settings import ClientProfile
 from .config.execution_settings import PipelineProfile
-from .config.prompt_registry import PromptRegistry
 from .core.artifact_store import ArtifactStore
 from .core.enums import FragmentationMode, IngestionMode
+from .core.master_orchestrator import MasterOrchestrator
 from .core.paper_context import PaperContext
-from .reporting.generator import ResultGenerator
+from .core.step_executor import StepExecutor
+from .result.builder import ResultBuilder
 from .service.artifact_key_builder import ArtifactKeyBuilder
-from .service.master_orchestrator import MasterOrchestrator
 from .service.paper_context_service import PaperContextService
-from .service.step_executor import StepExecutor
+from .service.prompt_service import PromptService
 
 
 class RunnerError(Exception):
@@ -61,7 +61,7 @@ class PipelineRunner:
         Construct the full dependency graph for the orchestrator.
         """
         artifact_store = ArtifactStore(database_path=artifact_store_path)
-        prompt_registry = PromptRegistry()
+        prompt_service = PromptService()
         provider = ProviderFactory.get_provider(client_profile)
 
         key_builder = ArtifactKeyBuilder(profile, paper_stem, master_prompt_key)
@@ -78,7 +78,7 @@ class PipelineRunner:
         return MasterOrchestrator(
             provider=provider,
             profile=profile,
-            prompt_registry=prompt_registry,
+            prompt_service=prompt_service,
             artifact_store=artifact_store,
             key_builder=key_builder,
             paper_context_service=paper_context_service,
@@ -430,7 +430,7 @@ class PipelineRunner:
             if not diagnostic_report:
                 logger.warning("Diagnostic profile is enabled but diagnostic report is missing.")
 
-        final_result = ResultGenerator.build_final_result(
+        final_result = ResultBuilder.build_final_result(
             profile=orchestrator.profile,
             assessment_report=assessment_report,
             identifier_mapping=identifier_mapping,
@@ -441,8 +441,8 @@ class PipelineRunner:
             refined_prompt=prompt,
         )
 
-        markdown_report = ResultGenerator.build_markdown_report(final_result, orchestrator.profile)
-        settings_hex = ResultGenerator.get_settings_hex(orchestrator.profile)
+        markdown_report = ResultBuilder.build_markdown_report(final_result, orchestrator.profile)
+        settings_hex = ResultBuilder.get_settings_hex(orchestrator.profile)
 
         output_dir = Path("output")
         output_dir.mkdir(parents=True, exist_ok=True)

@@ -9,7 +9,7 @@ from loguru import logger
 
 from ...clients.provider_protocol import ModelProvider
 from ...config.execution_settings import DiagnosticProfile
-from ...config.prompt_registry import PromptRegistry
+from ...service.prompt_service import PromptService
 from ...core.paper_context import PaperContext
 from .models import Decomposition, Analysis, FastDiagnostic
 from .schemas import DiagnosticReport, DiagnosticGroup, DiagnosticTaskList
@@ -23,22 +23,22 @@ class DiagnosticLogic:
     by managing the diagnostic logic models.
     """
 
-    def __init__(self, provider: ModelProvider, profile: DiagnosticProfile, prompt_registry: PromptRegistry):
+    def __init__(self, provider: ModelProvider, profile: DiagnosticProfile, prompt_service: PromptService):
         """
         Initialize the diagnostic logic with necessary providers and settings.
 
         Args:
             provider: The LLM API client.
             profile: The diagnostic-specific execution profile.
-            prompt_registry: The repository of prompt templates.
+            prompt_service: The repository of prompt templates.
         """
         self.provider = provider
         self.profile = profile
-        self.prompt_registry = prompt_registry
+        self.prompt_service = prompt_service
 
-        self.decomposition = Decomposition(profile.decomposition, prompt_registry)
-        self.analysis = Analysis(profile.analysis, prompt_registry)
-        self.fast_logic = FastDiagnostic(profile.analysis, prompt_registry)
+        self.decomposition = Decomposition(profile.decomposition, prompt_service)
+        self.analysis = Analysis(profile.analysis, prompt_service)
+        self.fast_logic = FastDiagnostic(profile.analysis, prompt_service)
 
     async def decompose(self, assessment_details: list[dict], prompt_assessment_text: str) -> DiagnosticTaskList:
         """

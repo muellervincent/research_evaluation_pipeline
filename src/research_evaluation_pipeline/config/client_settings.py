@@ -1,5 +1,5 @@
 """
-Client configuration settings for the research reporting pipeline.
+Client configuration settings for the research evaluation pipeline.
 Defines how to retrieve credentials and instantiate specific LLM clients.
 """
 

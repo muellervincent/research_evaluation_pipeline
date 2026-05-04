@@ -16,9 +16,6 @@ from typing import Awaitable, TypeVar
 from loguru import logger
 
 from ..config.execution_settings import PipelineProfile
-from ..core.artifact_store import ArtifactStore
-from ..core.enums import DiagnosticAnalysisStrategy, DiagnosticPromptSource, RefinementStrategy
-from ..core.paper_context import PaperContext
 from ..logic.assessment.schemas import (
     AssessmentAnswer,
     AssessmentEvidenceReport,
@@ -27,7 +24,10 @@ from ..logic.assessment.schemas import (
 )
 from ..logic.diagnostic.schemas import DiagnosticGroup, DiagnosticItem, DiagnosticTaskList
 from ..logic.preprocess.schemas import RefinementResult
-from .artifact_key_builder import ArtifactKeyBuilder
+from ..service.artifact_key_builder import ArtifactKeyBuilder
+from .artifact_store import ArtifactStore
+from .enums import DiagnosticAnalysisStrategy, DiagnosticPromptSource, RefinementStrategy
+from .paper_context import PaperContext
 
 TaskResultType = TypeVar("TaskResultType")
 
@@ -192,7 +192,7 @@ class StepExecutor:
             logger.info("Running assessment groups concurrently (bounded)...")
             grouped_answers = await self.gather_concurrently(
                 [process_group(group) for group in task_list.groups], limit=2
-            )
+              )
         else:
             logger.info("Running assessment groups sequentially...")
             grouped_answers = []

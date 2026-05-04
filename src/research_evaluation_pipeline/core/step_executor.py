@@ -192,7 +192,7 @@ class StepExecutor:
             logger.info("Running assessment groups concurrently (bounded)...")
             grouped_answers = await self.gather_concurrently(
                 [process_group(group) for group in task_list.groups], limit=2
-              )
+            )
         else:
             logger.info("Running assessment groups sequentially...")
             grouped_answers = []

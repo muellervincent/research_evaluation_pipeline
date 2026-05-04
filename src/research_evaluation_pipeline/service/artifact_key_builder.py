@@ -191,7 +191,9 @@ class ArtifactKeyBuilder:
             The deterministic key string.
         """
         decomposition_profile = self._profile.diagnostic.decomposition
-        input_hash = self._hash_input(f"{self._hash_input(prompt)}_{self._hash_input(assessment_details)}")
+        input_hash = self._hash_input(
+            f"{self._hash_input(prompt)}_{self._hash_input(assessment_details)}"
+        )
         return (
             f"diagnostic-decompose"
             f"__{decomposition_profile.model.value_sanitized}"
@@ -241,7 +243,9 @@ class ArtifactKeyBuilder:
             The deterministic key string.
         """
         analysis_profile = self._profile.diagnostic.analysis
-        input_hash = self._hash_input(f"{self._hash_input(prompt)}_{self._hash_input(assessment_details)}")
+        input_hash = self._hash_input(
+            f"{self._hash_input(prompt)}_{self._hash_input(assessment_details)}"
+        )
         return (
             f"diagnostic-fast"
             f"__{analysis_profile.model.value_sanitized}"

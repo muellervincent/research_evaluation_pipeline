@@ -23,7 +23,9 @@ class DiagnosticLogic:
     by managing the diagnostic logic models.
     """
 
-    def __init__(self, provider: ModelProvider, profile: DiagnosticProfile, prompt_service: PromptService):
+    def __init__(
+        self, provider: ModelProvider, profile: DiagnosticProfile, prompt_service: PromptService
+    ):
         """
         Initialize the diagnostic logic with necessary providers and settings.
 
@@ -40,7 +42,9 @@ class DiagnosticLogic:
         self.analysis = Analysis(profile.analysis, prompt_service)
         self.fast_logic = FastDiagnostic(profile.analysis, prompt_service)
 
-    async def decompose(self, assessment_details: list[dict], prompt_assessment_text: str) -> DiagnosticTaskList:
+    async def decompose(
+        self, assessment_details: list[dict], prompt_assessment_text: str
+    ) -> DiagnosticTaskList:
         """
         Execute the decomposition step to create a structured diagnostic task list.
 
@@ -75,7 +79,10 @@ class DiagnosticLogic:
         return await self.analysis.generate(self.provider, prompt_data)
 
     async def fast_diagnose(
-        self, assessment_details: list[dict], prompt_assessment_text: str, paper_context: PaperContext
+        self,
+        assessment_details: list[dict],
+        prompt_assessment_text: str,
+        paper_context: PaperContext,
     ) -> DiagnosticReport:
         """
         Execute the single-pass fast diagnostic mode.
@@ -92,5 +99,7 @@ class DiagnosticLogic:
         if not assessment_details:
             return DiagnosticReport(analyses=[])
 
-        prompt_data = self.fast_logic.build_prompt(assessment_details, prompt_assessment_text, paper_context)
+        prompt_data = self.fast_logic.build_prompt(
+            assessment_details, prompt_assessment_text, paper_context
+        )
         return await self.fast_logic.generate(self.provider, prompt_data)

@@ -8,15 +8,10 @@ from ...service.prompt_service import PromptService, PromptTemplate
 from ...config.execution_settings import (
     AssessmentDecompositionSettings,
     AssessmentExtractionSettings,
-    AssessmentSynthesisSettings
+    AssessmentSynthesisSettings,
 )
 from ..protocol import Model
-from .schemas import (
-    AssessmentReport,
-    AssessmentEvidenceReport,
-    AssessmentGroup,
-    AssessmentTaskList,
-)
+from .schemas import AssessmentReport, AssessmentEvidenceReport, AssessmentGroup, AssessmentTaskList
 from ...core.paper_context import PaperContext
 
 
@@ -86,7 +81,9 @@ class Extraction(Model[AssessmentEvidenceReport]):
         self.settings = settings
         self.prompt_service = prompt_service
 
-    def build_prompt(self, group: AssessmentGroup, paper_context: PaperContext) -> tuple[PromptTemplate, PaperContext]:
+    def build_prompt(
+        self, group: AssessmentGroup, paper_context: PaperContext
+    ) -> tuple[PromptTemplate, PaperContext]:
         """
         Construct the extraction prompt for a specific task group.
 
@@ -104,7 +101,9 @@ class Extraction(Model[AssessmentEvidenceReport]):
 
         return template, paper_context
 
-    async def generate(self, provider: ModelProvider, prompt_data: tuple[PromptTemplate, PaperContext]) -> AssessmentEvidenceReport:
+    async def generate(
+        self, provider: ModelProvider, prompt_data: tuple[PromptTemplate, PaperContext]
+    ) -> AssessmentEvidenceReport:
         """
         Execute the evidence extraction task via the AI provider.
 
@@ -142,7 +141,9 @@ class Synthesis(Model[AssessmentReport]):
         self.settings = settings
         self.prompt_service = prompt_service
 
-    def build_prompt(self, group: AssessmentGroup, evidence: AssessmentEvidenceReport) -> PromptTemplate:
+    def build_prompt(
+        self, group: AssessmentGroup, evidence: AssessmentEvidenceReport
+    ) -> PromptTemplate:
         """
         Construct the synthesis prompt using previously extracted evidence.
 
@@ -194,7 +195,9 @@ class FastAssessment(Model[AssessmentReport]):
         self.settings = settings
         self.prompt_service = prompt_service
 
-    def build_prompt(self, refined_prompt: str, paper_context: PaperContext) -> tuple[PromptTemplate, PaperContext]:
+    def build_prompt(
+        self, refined_prompt: str, paper_context: PaperContext
+    ) -> tuple[PromptTemplate, PaperContext]:
         """
         Construct the single-pass assessment prompt.
 
@@ -205,12 +208,14 @@ class FastAssessment(Model[AssessmentReport]):
         Returns:
             A tuple of the formatted prompt and the paper context.
         """
-        template = self.prompt_service.get_prompt(f"assessment.fast.{self.settings.strategy.value}").format(
-            prompt_refined_text=refined_prompt
-        )
+        template = self.prompt_service.get_prompt(
+            f"assessment.fast.{self.settings.strategy.value}"
+        ).format(prompt_refined_text=refined_prompt)
         return template, paper_context
 
-    async def generate(self, provider: ModelProvider, prompt_data: tuple[PromptTemplate, PaperContext]) -> AssessmentReport:
+    async def generate(
+        self, provider: ModelProvider, prompt_data: tuple[PromptTemplate, PaperContext]
+    ) -> AssessmentReport:
         """
         Execute the fast assessment task via the AI provider.
 

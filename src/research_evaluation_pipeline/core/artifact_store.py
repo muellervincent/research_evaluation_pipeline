@@ -81,7 +81,10 @@ class ArtifactStore:
             content: A JSON-serializable object to store.
         """
         with sqlite3.connect(self.database_path) as connection:
-            connection.execute("INSERT OR REPLACE INTO artifacts (key, content) VALUES (?, ?)", (key, json.dumps(content)))
+            connection.execute(
+                "INSERT OR REPLACE INTO artifacts (key, content) VALUES (?, ?)",
+                (key, json.dumps(content)),
+            )
             connection.commit()
             logger.trace(f"Saved artifact: {key}")
 
@@ -94,7 +97,9 @@ class ArtifactStore:
             content: A JSON-serializable object to store in the history.
         """
         with sqlite3.connect(self.database_path) as connection:
-            connection.execute("INSERT INTO runs (key, content) VALUES (?, ?)", (key, json.dumps(content)))
+            connection.execute(
+                "INSERT INTO runs (key, content) VALUES (?, ?)", (key, json.dumps(content))
+            )
             connection.commit()
             logger.trace(f"Saved run history for: {key}")
 

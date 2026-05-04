@@ -78,6 +78,7 @@ async def test_orchestrator_bypass_cache(orchestrator, mock_provider, in_memory_
     cached = in_memory_store.get_artifact(key)
     assert cached == {"data": "Old Data"}
 
+
 @pytest.mark.asyncio
 async def test_reconstruct_assessment_report(orchestrator, in_memory_store):
     """
@@ -85,27 +86,49 @@ async def test_reconstruct_assessment_report(orchestrator, in_memory_store):
     """
     prompt = "Refined Prompt"
     refinement = RefinementResult(refined_prompt=prompt)
-    in_memory_store.save_artifact(orchestrator.key_builder.preprocess_refine_key(), refinement.model_dump())
+    in_memory_store.save_artifact(
+        orchestrator.key_builder.preprocess_refine_key(), refinement.model_dump()
+    )
 
     task_list = AssessmentTaskList(
         groups=[
-            AssessmentGroup(group_name="Group1", tasks=[AssessmentTask(question_id="Q1", question_text="T1")]),
-            AssessmentGroup(group_name="Group2", tasks=[AssessmentTask(question_id="Q2", question_text="T2")]),
+            AssessmentGroup(
+                group_name="Group1", tasks=[AssessmentTask(question_id="Q1", question_text="T1")]
+            ),
+            AssessmentGroup(
+                group_name="Group2", tasks=[AssessmentTask(question_id="Q2", question_text="T2")]
+            ),
         ]
     )
-    in_memory_store.save_artifact(orchestrator.key_builder.assessment_decompose_key(prompt), task_list.model_dump())
+    in_memory_store.save_artifact(
+        orchestrator.key_builder.assessment_decompose_key(prompt), task_list.model_dump()
+    )
 
     evidence1 = AssessmentEvidenceReport(group_name="Group1", evidence_items=[])
-    in_memory_store.save_artifact(orchestrator.key_builder.assessment_extract_key(task_list.groups[0]), evidence1.model_dump())
-    
-    report1 = AssessmentReport(answers=[AssessmentAnswer(question_id="Q1", answer=True, justification="J1")])
-    in_memory_store.save_artifact(orchestrator.key_builder.assessment_synthesize_key("Group1", evidence1), report1.model_dump())
+    in_memory_store.save_artifact(
+        orchestrator.key_builder.assessment_extract_key(task_list.groups[0]), evidence1.model_dump()
+    )
+
+    report1 = AssessmentReport(
+        answers=[AssessmentAnswer(question_id="Q1", answer=True, justification="J1")]
+    )
+    in_memory_store.save_artifact(
+        orchestrator.key_builder.assessment_synthesize_key("Group1", evidence1),
+        report1.model_dump(),
+    )
 
     evidence2 = AssessmentEvidenceReport(group_name="Group2", evidence_items=[])
-    in_memory_store.save_artifact(orchestrator.key_builder.assessment_extract_key(task_list.groups[1]), evidence2.model_dump())
-    
-    report2 = AssessmentReport(answers=[AssessmentAnswer(question_id="Q2", answer=False, justification="J2")])
-    in_memory_store.save_artifact(orchestrator.key_builder.assessment_synthesize_key("Group2", evidence2), report2.model_dump())
+    in_memory_store.save_artifact(
+        orchestrator.key_builder.assessment_extract_key(task_list.groups[1]), evidence2.model_dump()
+    )
+
+    report2 = AssessmentReport(
+        answers=[AssessmentAnswer(question_id="Q2", answer=False, justification="J2")]
+    )
+    in_memory_store.save_artifact(
+        orchestrator.key_builder.assessment_synthesize_key("Group2", evidence2),
+        report2.model_dump(),
+    )
 
     final_report = await orchestrator.reconstruct_assessment_report()
 

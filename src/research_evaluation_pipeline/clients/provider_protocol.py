@@ -3,6 +3,7 @@ Protocol defining the interface for an LLM provider.
 """
 
 from typing import Any, Protocol
+
 from pydantic import BaseModel
 
 

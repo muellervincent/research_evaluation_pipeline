@@ -46,3 +46,7 @@ resources/convenience/
 tmp/
 *tmp*
 
+resources/correct_answers.csv
+resources/csv/
+resources/prompts_master.yaml
+resources/*.json

@@ -5,7 +5,7 @@
 # Example: ./scripts/run_stage.sh assessment
 
 STAGE="${1:-preprocess}"
-PROFILE="${2:-standard}"
+PROFILE="${2:-custom}"
 CLIENT_PROFILE="${3:-gemini-paid}"
 PAPER_PATH="${4:-resources/papers/0400.pdf}"
 PROMPT_PATH="${5:-resources/prompts_master.yaml}"

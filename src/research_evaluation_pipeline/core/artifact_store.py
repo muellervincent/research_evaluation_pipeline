@@ -68,7 +68,7 @@ class ArtifactStore:
             cursor = connection.execute("SELECT content FROM artifacts WHERE key = ?", (key,))
             row = cursor.fetchone()
             if row:
-                logger.debug(f"Artifact cache hit for key: {key}")
+                logger.trace(f"Artifact cache hit for key: {key}")
                 return json.loads(row[0])
             return None
 
@@ -83,7 +83,7 @@ class ArtifactStore:
         with sqlite3.connect(self.database_path) as connection:
             connection.execute("INSERT OR REPLACE INTO artifacts (key, content) VALUES (?, ?)", (key, json.dumps(content)))
             connection.commit()
-            logger.debug(f"Saved artifact: {key}")
+            logger.trace(f"Saved artifact: {key}")
 
     def save_run(self, key: str, content: Any):
         """
@@ -96,7 +96,7 @@ class ArtifactStore:
         with sqlite3.connect(self.database_path) as connection:
             connection.execute("INSERT INTO runs (key, content) VALUES (?, ?)", (key, json.dumps(content)))
             connection.commit()
-            logger.debug(f"Saved run history for: {key}")
+            logger.trace(f"Saved run history for: {key}")
 
     def delete_artifact(self, key: str):
         """

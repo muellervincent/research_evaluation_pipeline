@@ -67,7 +67,7 @@ class AssessmentLogic:
         Returns:
             The generated AssessmentEvidenceReport.
         """
-        logger.info("Executing assessment extraction for group...")
+        logger.info(f"Executing assessment extraction for group '{group.group_name}'...")
         prompt_data = self.extraction.build_prompt(group, paper_context)
         return await self.extraction.generate(self.provider, prompt_data)
 
@@ -82,7 +82,7 @@ class AssessmentLogic:
         Returns:
             The generated AssessmentReport.
         """
-        logger.info(f"Executing assessment synthesis for group {group.group_name} with strategy {self.profile.synthesis.strategy.value}...")
+        logger.info(f"Executing assessment synthesis for group '{group.group_name}' with strategy {self.profile.synthesis.strategy.value}...")
         prompt_data = self.synthesis.build_prompt(group, evidence)
         return await self.synthesis.generate(self.provider, prompt_data)
 

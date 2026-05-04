@@ -111,12 +111,12 @@ class MasterOrchestrator:
         if policy == CachePolicy.USE_CACHE:
             cached = self.artifact_store.get_artifact(key)
             if cached:
-                logger.debug(f"Cache hit for {key}. Skipping execution.")
+                logger.debug(f"Cache hit for step: {key.split('__')[0]}. Skipping execution.")
                 if hasattr(coroutine, "close"):
                     coroutine.close()
                 return response_model.model_validate(cached)
 
-        logger.debug(f"Executing step for key: {key}")
+        logger.trace(f"Executing step for key: {key}")
         result = await coroutine
 
         json_content = result.model_dump(mode="json")

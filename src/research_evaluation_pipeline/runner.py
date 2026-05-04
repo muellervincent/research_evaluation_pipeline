@@ -152,11 +152,13 @@ class PipelineRunner:
             elif stage == "assessment":
                 await self._run_assessment_stage(orchestrator, paper_context)
             elif stage == "diagnostic":
-                assessment_prompt = orchestrator.step_executor.resolve_diagnostic_prompt(master_prompt)
+                assessment_prompt = orchestrator.step_executor.resolve_diagnostic_prompt(
+                    master_prompt
+                )
                 await self._run_diagnostic_stage(
                     orchestrator, assessment_prompt, paper_context, ground_truth
                 )
-            elif stage == "results":
+            elif stage == "result":
                 await self._run_results_stage(orchestrator, master_prompt, ground_truth)
             else:
                 raise RunnerError(f"Stage '{stage}' is not supported.")
@@ -198,7 +200,9 @@ class PipelineRunner:
                 await self._run_assessment_step(orchestrator, step, paper_context)
 
             elif stage == "diagnostic":
-                assessment_prompt = orchestrator.step_executor.resolve_diagnostic_prompt(master_prompt)
+                assessment_prompt = orchestrator.step_executor.resolve_diagnostic_prompt(
+                    master_prompt
+                )
                 await self._run_diagnostic_step(
                     orchestrator, step, assessment_prompt, paper_context, ground_truth
                 )

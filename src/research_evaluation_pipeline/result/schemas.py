@@ -38,5 +38,6 @@ class FinalPipelineResult(BaseModel):
     paper_stem: str
     master_prompt_key: str
     metrics: PipelineMetrics
+    executed_at: str
     refined_prompt: str | None = None
     results: list[QuestionResult]

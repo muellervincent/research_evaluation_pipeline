@@ -22,7 +22,7 @@ class GeminiProvider(ModelProvider):
     """
 
     MAX_OUTPUT_TOKENS = 32768
-    MIN_CACHE_TOKENS = 8192
+    MIN_CACHE_TOKENS = 4096
     CACHE_TIME_TO_LIVE = "400s"
 
     def __init__(self, client: genai.Client):
@@ -229,10 +229,8 @@ class GeminiProvider(ModelProvider):
             token_response = await self.client.aio.models.count_tokens(
                 model=model_name, contents=contents
             )
+            logger.info(f"Content is {token_response.total_tokens} tokens.")
             if token_response.total_tokens >= self.MIN_CACHE_TOKENS:
-                logger.info(
-                    f"Content is {token_response.total_tokens} tokens. Creating Context Cache..."
-                )
                 cache = await self.client.aio.caches.create(
                     model=model_name,
                     config=types.CreateCachedContentConfig(

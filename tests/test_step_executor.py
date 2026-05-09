@@ -36,7 +36,7 @@ async def test_dispatch_assessment_groups_sequential(orchestrator):
         ]
     )
 
-    paper_context = PaperContext(paper_stem="test_paper")
+    paper_context = PaperContext(paper_stem="test_paper", raw_bytes=b"dummy")
 
     orchestrator.execute_assessment_extraction = AsyncMock(
         side_effect=[
@@ -76,7 +76,7 @@ async def test_dispatch_assessment_groups_concurrent(orchestrator):
         ]
     )
 
-    paper_context = PaperContext(paper_stem="test_paper")
+    paper_context = PaperContext(paper_stem="test_paper", raw_bytes=b"dummy")
 
     orchestrator.execute_assessment_extraction = AsyncMock(
         return_value=AssessmentEvidenceReport(group_name="any", evidence_items=[])

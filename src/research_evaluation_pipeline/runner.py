@@ -10,8 +10,7 @@ from pathlib import Path
 
 from loguru import logger
 
-from .clients.factory import ProviderFactory
-from .config.client_settings import ClientProfile
+from .clients.factory import MultiClientProvider
 from .config.execution_settings import PipelineProfile
 from .core.artifact_store import ArtifactStore
 from .core.enums import FragmentationMode, IngestionMode
@@ -52,7 +51,6 @@ class PipelineRunner:
     def setup_orchestrator(
         self,
         profile: PipelineProfile,
-        client_profile: ClientProfile,
         paper_stem: str,
         master_prompt_key: str,
         artifact_store_path: Path = Path("resources/artifacts.db"),
@@ -62,7 +60,7 @@ class PipelineRunner:
         """
         artifact_store = ArtifactStore(database_path=artifact_store_path)
         prompt_service = PromptService()
-        provider = ProviderFactory.get_provider(client_profile)
+        provider = MultiClientProvider()
 
         key_builder = ArtifactKeyBuilder(profile, paper_stem, master_prompt_key)
         paper_context_service = PaperContextService(
@@ -91,7 +89,6 @@ class PipelineRunner:
         paper_bytes: bytes,
         master_prompt: str,
         profile: PipelineProfile,
-        client_profile: ClientProfile,
         ground_truth: dict[str, bool] | None = None,
     ):
         """
@@ -100,7 +97,7 @@ class PipelineRunner:
         master_prompt_key = self.generate_prompt_key(master_prompt)
 
         orchestrator = self.setup_orchestrator(
-            profile, client_profile, paper_stem, master_prompt_key
+            profile, paper_stem, master_prompt_key
         )
 
         paper_context = None
@@ -129,7 +126,6 @@ class PipelineRunner:
         paper_bytes: bytes,
         master_prompt: str,
         profile: PipelineProfile,
-        client_profile: ClientProfile,
         ground_truth: dict[str, bool] | None = None,
     ):
         """
@@ -138,7 +134,7 @@ class PipelineRunner:
         master_prompt_key = self.generate_prompt_key(master_prompt)
 
         orchestrator = self.setup_orchestrator(
-            profile, client_profile, paper_stem, master_prompt_key
+            profile, paper_stem, master_prompt_key
         )
 
         paper_context = None
@@ -175,7 +171,6 @@ class PipelineRunner:
         paper_bytes: bytes,
         master_prompt: str,
         profile: PipelineProfile,
-        client_profile: ClientProfile,
         ground_truth: dict[str, bool] | None = None,
     ):
         """
@@ -184,7 +179,7 @@ class PipelineRunner:
         master_prompt_key = self.generate_prompt_key(master_prompt)
 
         orchestrator = self.setup_orchestrator(
-            profile, client_profile, paper_stem, master_prompt_key
+            profile, paper_stem, master_prompt_key
         )
 
         paper_context = None
@@ -229,7 +224,9 @@ class PipelineRunner:
             logger.success("Preprocess refinement complete.")
 
         elif step == "extract":
-            await orchestrator.paper_context_service.prepare_for_model_execution(paper_context)
+            await orchestrator.paper_context_service.prepare_for_model_execution(
+                paper_context, orchestrator.profile.preprocess.extraction.model.value
+            )
             await orchestrator.execute_preprocess_extraction(paper_context)
             await orchestrator.paper_context_service.restore_extracted_markdown(paper_context)
             logger.success("Preprocess extraction complete.")
@@ -255,7 +252,9 @@ class PipelineRunner:
         """
         if step == "fast":
             refinement_result = orchestrator.step_executor.require_refinement_result()
-            await orchestrator.paper_context_service.prepare_for_model_execution(paper_context)
+            await orchestrator.paper_context_service.prepare_for_model_execution(
+                paper_context, orchestrator.profile.assessment.synthesis.model.value
+            )
             await orchestrator.paper_context_service.ensure_api_cache(
                 paper_context, orchestrator.profile.assessment.synthesis.model.value
             )
@@ -274,7 +273,9 @@ class PipelineRunner:
             task_list = orchestrator.step_executor.require_assessment_task_list(
                 refinement_result.refined_prompt
             )
-            await orchestrator.paper_context_service.prepare_for_model_execution(paper_context)
+            await orchestrator.paper_context_service.prepare_for_model_execution(
+                paper_context, orchestrator.profile.assessment.extraction.model.value
+            )
             await orchestrator.paper_context_service.ensure_api_cache(
                 paper_context, orchestrator.profile.assessment.extraction.model.value
             )
@@ -324,8 +325,6 @@ class PipelineRunner:
             raise RunnerError("No diagnostic profile defined in the active recipe.")
 
         assessment_report = await orchestrator.reconstruct_assessment_report()
-        if not assessment_report:
-            raise RunnerError("Missing Assessment artifacts. Run 'assessment' stage first.")
 
         identifier_mapping = orchestrator.step_executor.get_identifier_mapping()
         assessment_details = [answer.model_dump() for answer in assessment_report.answers]
@@ -342,7 +341,9 @@ class PipelineRunner:
             return
 
         if step == "fast":
-            await orchestrator.paper_context_service.prepare_for_model_execution(paper_context)
+            await orchestrator.paper_context_service.prepare_for_model_execution(
+                paper_context, orchestrator.profile.diagnostic.analysis.model.value
+            )
             await orchestrator.paper_context_service.ensure_api_cache(
                 paper_context, orchestrator.profile.diagnostic.analysis.model.value
             )
@@ -361,7 +362,9 @@ class PipelineRunner:
             task_list = orchestrator.step_executor.require_diagnostic_task_list(
                 assessment_prompt, filtered_assessment_details
             )
-            await orchestrator.paper_context_service.prepare_for_model_execution(paper_context)
+            await orchestrator.paper_context_service.prepare_for_model_execution(
+                paper_context, orchestrator.profile.diagnostic.analysis.model.value
+            )
             await orchestrator.paper_context_service.ensure_api_cache(
                 paper_context, orchestrator.profile.diagnostic.analysis.model.value
             )
@@ -413,9 +416,6 @@ class PipelineRunner:
         prompt = refinement_result.refined_prompt
 
         assessment_report = await orchestrator.reconstruct_assessment_report()
-        if not assessment_report:
-            logger.error("Assessment report is missing. Cannot generate final results.")
-            return
 
         identifier_mapping = orchestrator.step_executor.get_identifier_mapping()
 
@@ -431,8 +431,6 @@ class PipelineRunner:
             diagnostic_report = await orchestrator.reconstruct_diagnostic_report(
                 prompt, filtered_assessment_details
             )
-            if not diagnostic_report:
-                logger.warning("Diagnostic profile is enabled but diagnostic report is missing.")
 
         final_result = ResultBuilder.build_final_result(
             profile=orchestrator.profile,

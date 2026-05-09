@@ -302,12 +302,15 @@ class MasterOrchestrator:
             ),
         )
 
-    async def reconstruct_assessment_report(self) -> AssessmentReport | None:
+    async def reconstruct_assessment_report(self) -> AssessmentReport:
         """
         Assemble a complete AssessmentReport from cached fragment synthesis artifacts.
 
         Returns:
-            The merged AssessmentReport if all fragments are present in cache, else None.
+            The merged AssessmentReport.
+
+        Raises:
+            ValueError: If any required fragments are missing from the cache.
         """
         refinement_result = self.step_executor.require_refinement_result()
         prompt = refinement_result.refined_prompt
@@ -316,7 +319,9 @@ class MasterOrchestrator:
             self.key_builder.assessment_decompose_key(prompt)
         )
         if not task_list_data:
-            return None
+            raise ValueError(
+                "Missing prerequisite: assessment decomposition artifact. Run 'run-step assessment decompose' first."
+            )
 
         task_list = AssessmentTaskList(**task_list_data)
         all_answers = []
@@ -326,8 +331,9 @@ class MasterOrchestrator:
                 self.key_builder.assessment_extract_key(group)
             )
             if not evidence_data:
-                logger.warning(f"Missing evidence artifact for group '{group.group_name}'.")
-                return None
+                raise ValueError(
+                    f"Missing prerequisite: assessment extraction artifact for group '{group.group_name}'. Run 'run-step assessment extract' first."
+                )
             evidence = AssessmentEvidenceReport(**evidence_data)
 
             synthesis_data = self.artifact_store.get_artifact(
@@ -337,14 +343,15 @@ class MasterOrchestrator:
                 report = AssessmentReport(**synthesis_data)
                 all_answers.extend(report.answers)
             else:
-                logger.warning(f"Missing synthesis artifact for group '{group.group_name}'.")
-                return None
+                raise ValueError(
+                    f"Missing prerequisite: assessment synthesis artifact for group '{group.group_name}'. Run 'run-step assessment synthesize' first."
+                )
 
         return AssessmentReport(answers=all_answers)
 
     async def reconstruct_diagnostic_report(
         self, prompt: str, assessment_details: list[dict]
-    ) -> DiagnosticReport | None:
+    ) -> DiagnosticReport:
         """
         Assemble a complete DiagnosticReport from cached fragment analysis artifacts.
 
@@ -353,13 +360,18 @@ class MasterOrchestrator:
             assessment_details: The filtered assessment details targeted for diagnostic.
 
         Returns:
-            The merged DiagnosticReport if all fragments are present in cache, else None.
+            The merged DiagnosticReport.
+
+        Raises:
+            ValueError: If any required fragments are missing from the cache.
         """
         task_list_data = self.artifact_store.get_artifact(
             self.key_builder.diagnostic_decompose_key(prompt, assessment_details)
         )
         if not task_list_data:
-            return None
+            raise ValueError(
+                "Missing prerequisite: diagnostic decomposition artifact. Run 'run-step diagnostic decompose' first."
+            )
 
         task_list = DiagnosticTaskList(**task_list_data)
         all_analyses = []
@@ -372,7 +384,8 @@ class MasterOrchestrator:
                 report = DiagnosticReport(**analysis_data)
                 all_analyses.extend(report.analyses)
             else:
-                logger.warning(f"Missing analysis artifact for group '{group.group_name}'.")
-                return None
+                raise ValueError(
+                    f"Missing prerequisite: diagnostic analysis artifact for group '{group.group_name}'. Run 'run-step diagnostic analyze' first."
+                )
 
         return DiagnosticReport(analyses=all_analyses)

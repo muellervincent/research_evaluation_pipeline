@@ -34,6 +34,11 @@ class GeminiProvider(ModelProvider):
         """
         self.client = client
 
+    @property
+    def provider_type(self) -> str:
+        """Return the name/type of the provider."""
+        return "gemini"
+
     async def generate_structured_output(
         self,
         model_name: str,
@@ -87,7 +92,7 @@ class GeminiProvider(ModelProvider):
         )
 
         logger.debug(
-            f"Received response for {model_name}. Length: {len(response.text)} characters."
+            f"Received structured response for {model_name}. Length: {len(response.text)} characters."
         )
         if hasattr(response, "usage_metadata"):
             logger.debug(
@@ -184,9 +189,20 @@ class GeminiProvider(ModelProvider):
                     )
                 )
             elif paper_context.raw_bytes:
-                contents.append(
-                    types.Part.from_bytes(data=paper_context.raw_bytes, mime_type="application/pdf")
-                )
+                file_id = paper_context.uploaded_file_ids.get("gemini")
+                if file_id:
+                    file_uri = f"https://generativelanguage.googleapis.com/v1beta/{file_id}"
+                    contents.append(
+                        types.Part(
+                            file_data=types.FileData(file_uri=file_uri, mime_type="application/pdf")
+                        )
+                    )
+                else:
+                    contents.append(
+                        types.Part.from_bytes(
+                            data=paper_context.raw_bytes, mime_type="application/pdf"
+                        )
+                    )
 
         if file_references:
             for reference in file_references:
@@ -265,9 +281,18 @@ class GeminiProvider(ModelProvider):
                     types.Part.from_text(text=f"RESEARCH PAPER MARKDOWN:\n\n{content.raw_text}")
                 )
             elif content.raw_bytes:
-                contents_to_cache.append(
-                    types.Part.from_bytes(data=content.raw_bytes, mime_type="application/pdf")
-                )
+                file_id = content.uploaded_file_ids.get("gemini")
+                if file_id:
+                    file_uri = f"https://generativelanguage.googleapis.com/v1beta/{file_id}"
+                    contents_to_cache.append(
+                        types.Part(
+                            file_data=types.FileData(file_uri=file_uri, mime_type="application/pdf")
+                        )
+                    )
+                else:
+                    contents_to_cache.append(
+                        types.Part.from_bytes(data=content.raw_bytes, mime_type="application/pdf")
+                    )
 
             cache_name = await self._cache_content(model_name, contents_to_cache)
             if cache_name:
@@ -299,3 +324,47 @@ class GeminiProvider(ModelProvider):
                 del context.model_caches[cache_model]
 
         logger.info("Pipeline resource cleanup complete.")
+
+    async def upload_file(self, file_bytes: bytes, filename: str) -> str:
+        """
+        Upload a file to Gemini's File API.
+
+        Args:
+            file_bytes: The raw data to upload.
+            filename: A label for the file.
+
+        Returns:
+            The resource name of the uploaded file.
+        """
+        from io import BytesIO
+        import mimetypes
+
+        # Dynamically determine mime type from filename
+        mime_type, _ = mimetypes.guess_type(filename)
+        if not mime_type:
+            # Fallback for PDFs if mimetypes fails
+            if filename.lower().endswith(".pdf"):
+                mime_type = "application/pdf"
+            else:
+                mime_type = "application/octet-stream"
+
+        file_io = BytesIO(file_bytes)
+        uploaded_file = await self.client.aio.files.upload(
+            file=file_io,
+            config=types.UploadFileConfig(display_name=filename, mime_type=mime_type),
+        )
+        logger.info(f"Uploaded file to Gemini: {uploaded_file.name} (Mime-Type: {mime_type})")
+        return uploaded_file.name
+
+    async def validate_file(self, file_id: str) -> bool:
+        """
+        Check if a file still exists in the Gemini File API.
+        """
+        try:
+            file = await self.client.aio.files.get(name=file_id)
+            is_active = file.state.name == "ACTIVE"
+            if not is_active:
+                logger.warning(f"Gemini file {file_id} is in state: {file.state.name}")
+            return is_active
+        except Exception:
+            return False

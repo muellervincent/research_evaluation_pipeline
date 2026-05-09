@@ -48,7 +48,7 @@ class PreprocessLogic:
         Returns:
             The generated RefinementResult.
         """
-        logger.info("Executing prompt refinement...")
+        logger.info(f"Executing prompt refinement with {self.profile.refinement.model.value}...")
         prompt = self.refinement.build_prompt(master_prompt)
         return await self.refinement.generate(self.provider, prompt)
 
@@ -62,6 +62,8 @@ class PreprocessLogic:
         Returns:
             The generated ExtractionResult.
         """
-        logger.info(f"Executing extraction for {paper_context.paper_stem}")
+        logger.info(
+            f"Executing extraction for {paper_context.paper_stem} with {self.profile.extraction.model.value}..."
+        )
         prompt = self.extraction.build_prompt()
         return await self.extraction.generate(self.provider, prompt, paper_context)

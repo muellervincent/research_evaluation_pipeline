@@ -12,6 +12,11 @@ class ModelProvider(Protocol):
     Protocol defining the interface for an LLM provider.
     """
 
+    @property
+    def provider_type(self) -> str:
+        """Return the name/type of the provider (e.g., 'gemini', 'openai')."""
+        ...
+
     async def generate_structured_output(
         self,
         model_name: str,
@@ -47,4 +52,12 @@ class ModelProvider(Protocol):
 
     async def cleanup_context(self, context: Any) -> None:
         """Safely tears down all remote resources (caches, files) associated with a context object."""
+        ...
+
+    async def upload_file(self, file_bytes: bytes, filename: str) -> str:
+        """Upload a file to the provider's storage and return a unique identifier."""
+        ...
+
+    async def validate_file(self, file_id: str) -> bool:
+        """Check if a file still exists and is usable on the provider's server."""
         ...

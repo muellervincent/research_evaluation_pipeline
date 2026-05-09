@@ -11,7 +11,6 @@ import tomli
 import yaml
 from loguru import logger
 
-from ..config.client_settings import ClientProfile
 from ..config.execution_settings import PipelineProfile
 
 
@@ -36,25 +35,6 @@ def load_execution_profile(profiles_path: Path, profile_name: str) -> PipelinePr
         return PipelineProfile(**profiles_data[profile_name])
     except Exception as error:
         raise ResourceLoaderError(f"Failed to validate PipelineProfile '{profile_name}': {error}")
-
-
-def load_client_profile(profiles_path: Path, profile_name: str) -> ClientProfile:
-    """
-    Load and validate a ClientProfile from a TOML file.
-    """
-    if not profiles_path.exists():
-        raise ResourceLoaderError(f"Client profiles file not found: {profiles_path}")
-
-    with open(profiles_path, "rb") as profile_file:
-        profiles_data = tomli.load(profile_file)
-
-    if profile_name not in profiles_data:
-        raise ResourceLoaderError(f"Client profile '{profile_name}' not found in {profiles_path}")
-
-    try:
-        return ClientProfile(**profiles_data[profile_name])
-    except Exception as error:
-        raise ResourceLoaderError(f"Failed to validate ClientProfile '{profile_name}': {error}")
 
 
 def load_paper(paper_path: Path) -> tuple[str, bytes]:

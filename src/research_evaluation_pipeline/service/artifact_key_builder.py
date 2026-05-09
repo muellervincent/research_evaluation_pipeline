@@ -56,13 +56,15 @@ class ArtifactKeyBuilder:
         Generate an 8-character hex digest of the input data.
         """
         if isinstance(data, BaseModel):
-            content = data.model_dump_json()
+            content_bytes = data.model_dump_json().encode("utf-8")
         elif isinstance(data, list) and all(isinstance(item, dict) for item in data):
-            content = json.dumps(data, sort_keys=True)
+            content_bytes = json.dumps(data, sort_keys=True).encode("utf-8")
+        elif isinstance(data, bytes):
+            content_bytes = data
         else:
-            content = str(data)
+            content_bytes = str(data).encode("utf-8")
 
-        return hashlib.sha256(content.encode("utf-8")).hexdigest()[:8]
+        return hashlib.sha256(content_bytes).hexdigest()[:8]
 
     def preprocess_refine_key(self) -> str:
         """
@@ -256,3 +258,13 @@ class ArtifactKeyBuilder:
             f"__{analysis_profile.strategy.value_sanitized}"
             f"__{input_hash}"
         )
+
+    def paper_upload_key(self, raw_bytes: bytes | None = None) -> str:
+        """
+        Generate the unique key for the paper's uploaded file metadata.
+
+        Flags: stem, and the hash of the raw bytes to ensure changes to the PDF trigger a re-upload.
+        """
+        if raw_bytes:
+            return f"metadata-upload__{self._stem}__{self._hash_input(raw_bytes)}"
+        return f"metadata-upload__{self._stem}"

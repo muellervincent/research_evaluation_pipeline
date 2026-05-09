@@ -55,7 +55,7 @@ class DiagnosticLogic:
         Returns:
             The generated DiagnosticTaskList.
         """
-        logger.info("Executing diagnostic decomposition...")
+        logger.info(f"Executing diagnostic decomposition with {self.profile.decomposition.model.value}...")
         assessment_details_json = json.dumps(assessment_details, indent=2)
         prompt = self.decomposition.build_prompt(prompt_assessment_text, assessment_details_json)
         return await self.decomposition.generate(self.provider, prompt)
@@ -74,7 +74,9 @@ class DiagnosticLogic:
         Returns:
             The generated DiagnosticReport containing classifications.
         """
-        logger.info(f"Executing diagnostic analysis for group '{group.group_name}'...")
+        logger.info(
+            f"Executing diagnostic analysis for group '{group.group_name}' with {self.profile.analysis.model.value}..."
+        )
         prompt_data = self.analysis.build_prompt(group, prompt_assessment_text, paper_context)
         return await self.analysis.generate(self.provider, prompt_data)
 
@@ -95,7 +97,7 @@ class DiagnosticLogic:
         Returns:
             The generated DiagnosticReport.
         """
-        logger.info("Executing fast diagnostic...")
+        logger.info(f"Executing fast diagnostic with {self.profile.analysis.model.value}...")
         if not assessment_details:
             return DiagnosticReport(analyses=[])
 

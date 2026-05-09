@@ -17,9 +17,10 @@ class PaperContext(BaseModel):
 
     raw_text: str | None = None
 
-    raw_bytes: bytes | None = Field(None, exclude=True)
+    raw_bytes: bytes = Field(..., exclude=True)
 
     model_caches: dict[str, str] = Field(default_factory=dict)
+    uploaded_file_ids: dict[str, str] = Field(default_factory=dict)
 
     def has_model_cache(self, model_name: str) -> bool:
         """

@@ -8,6 +8,7 @@ dependencies = [
     "google-genai>=1.70.0",
     "keyring>=25.7.0",
     "loguru>=0.7.3",
+    "openai>=2.34.0",
     "pydantic>=2.12.5",
     "pydantic-settings>=2.13.1",
     "pytest>=9.0.3",

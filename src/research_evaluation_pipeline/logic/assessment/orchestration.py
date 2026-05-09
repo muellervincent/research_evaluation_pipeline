@@ -48,7 +48,7 @@ class AssessmentLogic:
         Returns:
             The generated AssessmentTaskList.
         """
-        logger.info("Executing assessment decomposition...")
+        logger.info(f"Executing assessment decomposition with {self.profile.decomposition.model.value}...")
         prompt = self.decomposition.build_prompt(refined_prompt)
         return await self.decomposition.generate(self.provider, prompt)
 
@@ -65,7 +65,9 @@ class AssessmentLogic:
         Returns:
             The generated AssessmentEvidenceReport.
         """
-        logger.info(f"Executing assessment extraction for group '{group.group_name}'...")
+        logger.info(
+            f"Executing assessment extraction for group '{group.group_name}' with {self.profile.extraction.model.value}..."
+        )
         prompt_data = self.extraction.build_prompt(group, paper_context)
         return await self.extraction.generate(self.provider, prompt_data)
 
@@ -83,7 +85,7 @@ class AssessmentLogic:
             The generated AssessmentReport.
         """
         logger.info(
-            f"Executing assessment synthesis for group '{group.group_name}' with strategy {self.profile.synthesis.strategy.value}..."
+            f"Executing assessment synthesis for group '{group.group_name}' with strategy {self.profile.synthesis.strategy.value} on {self.profile.synthesis.model.value}..."
         )
         prompt_data = self.synthesis.build_prompt(group, evidence)
         return await self.synthesis.generate(self.provider, prompt_data)
@@ -102,7 +104,7 @@ class AssessmentLogic:
             The generated AssessmentReport.
         """
         logger.info(
-            f"Executing FAST assessment synthesis with strategy {self.profile.synthesis.strategy.value}..."
+            f"Executing FAST assessment synthesis with strategy {self.profile.synthesis.strategy.value} on {self.profile.synthesis.model.value}..."
         )
         prompt_data = self.fast_logic.build_prompt(refined_prompt, paper_context)
         return await self.fast_logic.generate(self.provider, prompt_data)

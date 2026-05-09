@@ -7,7 +7,7 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 from pydantic import BaseModel
 
-from research_evaluation_pipeline.clients.gemini import GeminiProvider
+from research_evaluation_pipeline.clients.gemini_provider import GeminiProvider
 
 
 class MockResponse(BaseModel):

@@ -212,3 +212,57 @@ temperature = 0.2
 cache_policy = "use-cache"
 strategy = "diagnose-mismatches"
 processing_mode = "concurrent"
+
+
+[hybrid]
+ingestion_mode = "pdf"
+
+[hybrid.preprocess.refinement]
+model = "gemini-3.1-pro-preview"
+temperature = 0.2
+cache_policy = "use-cache"
+strategy = "semantic"
+
+[hybrid.preprocess.extraction]
+model = "gemini-3.1-pro-preview"
+temperature = 0.0
+cache_policy = "use-cache"
+
+[hybrid.assessment]
+fragmentation = "plan"
+
+[hybrid.assessment.decomposition]
+model = "gpt-4o"
+temperature = 0.3
+cache_policy = "use-cache"
+strategy = "structural"
+
+[hybrid.assessment.extraction]
+model = "gemini-3.1-pro-preview"
+temperature = 0.1
+cache_policy = "use-cache"
+strategy = "standard"
+processing_mode = "concurrent"
+
+[hybrid.assessment.synthesis]
+model = "gemini-3.1-pro-preview"
+temperature = 0.3
+cache_policy = "use-cache"
+strategy = "analytical"
+
+[hybrid.diagnostic]
+fragmentation = "plan"
+prompt_source = "refined"
+
+[hybrid.diagnostic.decomposition]
+model = "gemini-3.1-pro-preview"
+temperature = 0.3
+cache_policy = "use-cache"
+strategy = "thematic"
+
+[hybrid.diagnostic.analysis]
+model = "gemini-3.1-pro-preview"
+temperature = 0.2
+cache_policy = "use-cache"
+strategy = "diagnose-mismatches"
+processing_mode = "concurrent"

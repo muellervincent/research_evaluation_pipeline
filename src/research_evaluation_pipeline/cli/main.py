@@ -18,7 +18,6 @@ from .convenience import (
 )
 from .resource_loader import (
     ResourceLoaderError,
-    load_client_profile,
     load_execution_profile,
     load_ground_truth,
     load_paper,
@@ -26,7 +25,6 @@ from .resource_loader import (
 )
 
 EXECUTION_PROFILES_PATH = Path("resources/profiles/execution.toml")
-CLIENT_PROFILES_PATH = Path("resources/profiles/client.toml")
 
 app = typer.Typer(help="Research Reporting Pipeline CLI", no_args_is_help=True)
 database_app = typer.Typer(help="Database management commands", no_args_is_help=True)
@@ -37,9 +35,6 @@ app.add_typer(database_app, name="db")
 def run_pipeline(
     profile_name: str = typer.Option(
         "standard", "--profile", help="Name of the strategy profile to use"
-    ),
-    client_profile: str = typer.Option(
-        "gemini-paid", "--client-profile", help="Name of the client profile to use"
     ),
     paper_path: Path = typer.Option(..., "--paper-path", help="Path to the source PDF"),
     prompt_path: Path = typer.Option(..., "--prompt-path", help="Path to the criteria file"),
@@ -52,9 +47,6 @@ def run_pipeline(
     execution_profiles: Path = typer.Option(
         EXECUTION_PROFILES_PATH, "--execution-profiles", help="Path to execution profiles TOML"
     ),
-    client_profiles: Path = typer.Option(
-        CLIENT_PROFILES_PATH, "--client-profiles", help="Path to client profiles TOML"
-    ),
 ):
     """
     Execute the entire research assessment and diagnostic pipeline end-to-end.
@@ -64,7 +56,6 @@ def run_pipeline(
         paper_stem, paper_bytes = load_paper(paper_path)
         master_prompt = load_prompt(prompt_path, prompt_key)
         profile = load_execution_profile(execution_profiles, profile_name)
-        client_settings = load_client_profile(client_profiles, client_profile)
         ground_truth = load_ground_truth(ground_truth_path, paper_stem)
 
         # 2. Execute via Runner
@@ -75,7 +66,6 @@ def run_pipeline(
                 paper_bytes=paper_bytes,
                 master_prompt=master_prompt,
                 profile=profile,
-                client_profile=client_settings,
                 ground_truth=ground_truth,
             )
         )
@@ -89,9 +79,6 @@ def run_stage(
     stage: str = typer.Argument(
         ..., help="Stage to run (preprocess, assessment, diagnostic, results)"
     ),
-    client_profile: str = typer.Option(
-        "gemini-paid", "--client-profile", help="Name of the client profile to use"
-    ),
     profile_name: str = typer.Option("standard", "--profile", help="Name of the profile to use"),
     paper_path: Path = typer.Option(..., "--paper-path", help="Path to the source PDF"),
     prompt_path: Path = typer.Option(..., "--prompt-path", help="Path to the criteria file"),
@@ -104,9 +91,6 @@ def run_stage(
     execution_profiles: Path = typer.Option(
         EXECUTION_PROFILES_PATH, "--execution-profiles", help="Path to execution profiles TOML"
     ),
-    client_profiles: Path = typer.Option(
-        CLIENT_PROFILES_PATH, "--client-profiles", help="Path to client profiles TOML"
-    ),
 ):
     """
     Execute a single stage of the research pipeline.
@@ -116,7 +100,6 @@ def run_stage(
         paper_stem, paper_bytes = load_paper(paper_path)
         master_prompt = load_prompt(prompt_path, prompt_key)
         profile = load_execution_profile(execution_profiles, profile_name)
-        client_settings = load_client_profile(client_profiles, client_profile)
         ground_truth = load_ground_truth(ground_truth_path, paper_stem)
 
         # 2. Execute via Runner
@@ -128,7 +111,6 @@ def run_stage(
                 paper_bytes=paper_bytes,
                 master_prompt=master_prompt,
                 profile=profile,
-                client_profile=client_settings,
                 ground_truth=ground_truth,
             )
         )
@@ -144,9 +126,6 @@ def run_step(
         ..., help="Step to run (refine, extract, decompose, synthesize, analyze)"
     ),
     profile_name: str = typer.Option("standard", "--profile", help="Name of the profile to use"),
-    client_profile: str = typer.Option(
-        "gemini-paid", "--client-profile", help="Name of the client profile to use"
-    ),
     paper_path: Path = typer.Option(..., "--paper-path", help="Path to the source PDF"),
     prompt_path: Path = typer.Option(..., "--prompt-path", help="Path to the criteria file"),
     prompt_key: str | None = typer.Option(
@@ -158,9 +137,6 @@ def run_step(
     execution_profiles: Path = typer.Option(
         EXECUTION_PROFILES_PATH, "--execution-profiles", help="Path to execution profiles TOML"
     ),
-    client_profiles: Path = typer.Option(
-        CLIENT_PROFILES_PATH, "--client-profiles", help="Path to client profiles TOML"
-    ),
 ):
     """
     Execute a granular atomic step with strict prerequisite validation.
@@ -170,7 +146,6 @@ def run_step(
         paper_stem, paper_bytes = load_paper(paper_path)
         master_prompt = load_prompt(prompt_path, prompt_key)
         profile = load_execution_profile(execution_profiles, profile_name)
-        client_settings = load_client_profile(client_profiles, client_profile)
         ground_truth = load_ground_truth(ground_truth_path, paper_stem)
 
         # 2. Execute via Runner
@@ -183,7 +158,6 @@ def run_step(
                 paper_bytes=paper_bytes,
                 master_prompt=master_prompt,
                 profile=profile,
-                client_profile=client_settings,
                 ground_truth=ground_truth,
             )
         )

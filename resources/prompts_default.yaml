@@ -14,23 +14,6 @@ preprocess:
 
   refine:
     standard:
-      system: "You are an expert NLP instruction parser. Your objective is to clean configuration prompts by isolating core analytical requirements and stripping away all formatting or syntax constraints."
-      user: |-
-        ### ORIGINAL INSTRUCTION ###
-        {prompt_master_text}
-
-        ### TASK ###
-        1. Remove all instructions related to output syntax, delimiters, and formatting (e.g., JSON, Markdown, CSV tables, headers, or escape characters).
-        2. Remove meta-instructions regarding model behavior or verification (e.g., "do not use the internet", "verify quotes", "take your time", "analyse carefully").
-        3. Retain all analytical questions, criteria, and conditional instructions.
-        4. If the original question has a label or number (e.g., '1.', '7a.'), record it as the 'original_id'. If no label exists, set 'original_id' to null and 'semantic_id' to an empty string. Retain the label or number in the text.
-
-        ### OUTPUT CONSTRAINTS ###
-        The output must be a JSON object containing the following fields:
-        - "refined_prompt" (str): The cleaned prompt text.
-        - "question_identifiers" (list): A list of objects with "semantic_id" (str) and "original_id" (str or null). Null or empty list if no identifiers.
-
-    semantic:
       system: "You are an expert NLP instruction parser. Your objective is to clean configuration prompts by isolating core analytical requirements and assigning unique, semantic short IDs to each question."
       user: |-
         ### ORIGINAL INSTRUCTION ###
@@ -38,15 +21,35 @@ preprocess:
 
         ### TASK ###
         1. Remove all instructions related to output syntax, delimiters, and formatting (e.g., JSON, Markdown, CSV tables, headers, or escape characters).
-        2. Retain all analytical questions, criteria, and conditional instructions.
-        3. Assign a unique, semantic short ID (snake_case, e.g. 'q_patient_age') to each question/criterion.
-        4. Prefix each question in the final output with its ID in brackets (e.g., "[q_patient_age] What was the mean age...").
-        5. If the original question has a label or number (e.g., '1.', '7a.'), record it as the 'original_id'. If no label exists, set 'original_id' to null.
+        2. Remove meta-instructions regarding model behavior or verification (e.g., "do not use the internet", "verify quotes", "take your time", "analyse carefully").
+        3. Retain all analytical questions, criteria, and conditional instructions exactly as they are written. Do not rephrase or elaborate them.
+        4. Assign a unique, semantic short ID (snake_case, e.g. 'q_patient_age') to each question/criterion.
+        5. Prefix each question in the final output with its ID in brackets (e.g., "[q_patient_age] What was the mean age...").
+        6. If the original question has a label or number (e.g., '1.', '7a.'), record it as the 'original_id'. If no label exists, set 'original_id' to null.
 
         ### OUTPUT CONSTRAINTS ###
         The output must be a JSON object containing the following fields:
         - "refined_prompt" (str): The cleaned prompt text with [semantic_id] prefixes.
-        - "question_identifiers" (list): A list of objects mapping "semantic_id" (str) to "original_id" (str or null).
+        - "question_identifiers" (list): A list of objects containing "semantic_id" (str) and "original_id" (str or null).
+
+    semantic:
+      system: "You are an expert NLP instruction parser and methodology analyst. Your objective is to clean configuration prompts, elaborate and refine the analytical requirements to be more detailed, and assign unique, semantic short IDs to each question."
+      user: |-
+        ### ORIGINAL INSTRUCTION ###
+        {prompt_master_text}
+
+        ### TASK ###
+        1. Remove all instructions related to output syntax, delimiters, and formatting (e.g., JSON, Markdown, CSV tables, headers, or escape characters).
+        2. Remove meta-instructions regarding model behavior or verification (e.g., "do not use the internet", "verify quotes", "take your time", "analyse carefully").
+        3. Retain all analytical questions, criteria, and conditional instructions. Further refine the questions by elaborating on them, making them more detailed, semantic, and clear for objective assessment.
+        4. Assign a unique, semantic short ID (snake_case, e.g. 'q_patient_age') to each question/criterion.
+        5. Prefix each refined question in the final output with its ID in brackets (e.g., "[q_patient_age] What was the mean age...").
+        6. If the original question has a label or number (e.g., '1.', '7a.'), record it as the 'original_id'. If no label exists, set 'original_id' to null.
+
+        ### OUTPUT CONSTRAINTS ###
+        The output must be a JSON object containing the following fields:
+        - "refined_prompt" (str): The refined and elaborated prompt text with [semantic_id] prefixes.
+        - "question_identifiers" (list): A list of objects containing "semantic_id" (str) and "original_id" (str or null).
 
 assessment:
   decomposition:

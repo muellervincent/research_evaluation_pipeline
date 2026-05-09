@@ -9,27 +9,34 @@ This diagram shows the pipeline's data flow, execution architecture, and the art
 ```mermaid
 graph TD
     %% Global Inputs
-    PDF_FILE["Source PDF File"]
-    MASTER_PROMPT["Master Prompt (YAML/MD)"]
-    GROUND_TRUTH["Ground Truth (CSV)"]
+    PDF_FILE(["Source PDF File"])
+    MASTER_PROMPT(["Master Prompt (YAML/MD)"])
+    GROUND_TRUTH(["Ground Truth (CSV)"])
+
+    %% Paper Context Lifecycle
+    subgraph CONTEXT_LIFECYCLE["Document Lifecycle"]
+        direction TB
+        PC_INIT["Step: Context Initialization"]
+        PAPER_CONTEXT[/"ARTIFACT: Paper Context (PDF + Extracted MD + IDs)"/]
+        
+        PDF_FILE --> PC_INIT
+        PC_INIT --> PAPER_CONTEXT
+    end
 
     %% Stage 1: Preprocess
     subgraph PREPROCESS["Stage 1: Preprocess"]
         direction TB
         S1_REFINE["Step: Refine Prompt"]
-        S1_EXTRACT["Step: Extraction"]
-        S1_UPLOAD["Step: API Upload"]
+        S1_EXTRACT["Step: MD Extraction (Mode: MD)"]
+        
         REFINED_PROMPT["ARTIFACT: Refined Prompt"]
-        PAPER_CONTEXT["ARTIFACT: Paper Context (Markdown or API Ref)"]
 
         S1_REFINE --> REFINED_PROMPT
         S1_EXTRACT --> PAPER_CONTEXT
-        S1_UPLOAD --> PAPER_CONTEXT
     end
 
-    PDF_FILE --> S1_EXTRACT
-    PDF_FILE --> S1_UPLOAD
     MASTER_PROMPT --> S1_REFINE
+    PAPER_CONTEXT --> S1_EXTRACT
 
     %% Stage 2: Assessment
     subgraph ASSESSMENT["Stage 2: Assessment"]
@@ -38,6 +45,7 @@ graph TD
         S2_DECOMP["Step: Criteria Decomposition"]
         S2_EXTRACT["Step: Evidence Extraction"]
         S2_SYNTH["Step: Group Synthesis"]
+        
         ASS_TASK_LIST["ARTIFACT: Assessment Task List"]
         EVIDENCE_REPORTS["ARTIFACT: Evidence Reports"]
         ASSESSMENT_REPORT["ARTIFACT: Assessment Report"]
@@ -62,6 +70,7 @@ graph TD
         S3_FAST["Step: Fast Diagnostic"]
         S3_DECOMP["Step: Diagnostic Decomposition"]
         S3_ANALYZE["Step: Logic Analysis"]
+        
         FILTERED_PREDICTIONS["ARTIFACT: Diagnostic Target List"]
         DIAG_PROMPT_INPUT["ARTIFACT: Selected Diagnostic Prompt"]
         DIAG_TASK_LIST["ARTIFACT: Diagnostic Task List"]
@@ -97,6 +106,7 @@ graph TD
         S4_MERGE["Step: Artifact Reconstruction"]
         S4_GEN_MD["Step: Markdown Generator"]
         S4_GEN_JSON["Step: JSON Generator"]
+        
         FINAL_DATA_MODEL["ARTIFACT: Final Result Model"]
         MD_OUTPUT["OUTPUT: report.md"]
         JSON_OUTPUT["OUTPUT: result.json"]
@@ -115,23 +125,26 @@ graph TD
 
 ## Features
 
-- **Multi-Stage Execution**: Modular workflow covering preprocessing, assessment, diagnostics, and results generation.
-- **Automated Reporting**: Generates Markdown and JSON reports with ground truth comparison metrics.
-- **Granular Execution**: Run the full pipeline, specific stages, or individual atomic steps via the CLI.
-- **Deterministic Caching**: Content-based hashing ensures consistent artifact management and avoids redundant computation.
-- **Provider Agnostic**: Protocol-based architecture supporting multiple LLM providers (Google Gemini included).
-- **TOML-Based Config**: Manage complex execution profiles and client credentials via TOML files.
-- **SQLite Artifact Store**: Local caching system to reduce API latency and costs during development.
+-   **Multi-Provider Support**: Seamlessly switch between **Google Gemini** (via Vertex/AI Studio) and **OpenAI** (GPT-4o, o1, o3) models.
+-   **Hybrid LLM Routing**: Assign different models to specific pipeline steps (e.g., GPT-4o for extraction, Gemini 3.1 Pro for synthesis) within a single execution profile.
+-   **Multi-Stage Execution**: Modular workflow covering preprocessing, assessment, diagnostics, and results generation.
+-   **Deterministic Caching**: Content-based hashing ensures consistent artifact management and avoids redundant computation at both the application and API levels.
+-   **SQLite Artifact Store**: Local persistence layer for caching LLM responses, reducing latency and costs during development and large-scale runs.
+-   **Automated Diagnostic Reporting**: Automatically identifies discrepancies between model predictions and ground truth, performing root-cause analysis on mismatches.
+-   **Granular Execution**: Run the full pipeline, specific stages, or individual atomic steps via the simplified CLI.
 
 ## Project Structure
 
-- `src/research_evaluation_pipeline`: Core logic and CLI implementation.
-- `resources/`: Directory for input data and configurations.
-- `resources/profiles`: Example configuration files for execution strategies and client settings.
-- `resources/papers`: Target directory for source PDF documents.
-- `resources/prompts_default.yaml`: A provided set of default system and user prompts for various pipeline stages.
-- `resources/prompts_master.yaml`: The primary registry for evaluation criteria. This file should be populated by the user with specific master instructions.
-- `output`: Destination for generated JSON and Markdown reports.
+-   `src/research_evaluation_pipeline`: Core logic, orchestrators, and CLI implementation.
+    -   `clients/`: LLM provider implementations (Gemini, OpenAI) and factory routing.
+    -   `logic/`: Stage-specific logic for assessment, diagnostics, and preprocessing.
+    -   `core/`: Fundamental models, enums, and the `ArtifactStore`.
+    -   `service/`: Internal services for prompt management and paper context handling.
+-   `resources/`: Directory for input data and configurations.
+-   `resources/profiles`: Execution strategy profiles (TOML).
+-   `resources/papers`: Target directory for source PDF documents.
+-   `resources/prompts_master.yaml`: The primary registry for evaluation criteria.
+-   `output/`: Destination for generated JSON and Markdown reports.
 
 ## Installation
 
@@ -162,32 +175,32 @@ curl -LsSf https://astral.sh/uv/install.sh | sh
 uv sync
 ```
 
-#### Prompt Data Structure
+## Data Structures
+
+### Prompt Registry
 The pipeline supports various formats for evaluation criteria:
 
 -   **Standalone Files** (`.md`, `.txt`): The entire file content is treated as the master prompt.
--   **Prompt Registries** (`.yaml`, `.json`): A dictionary of multiple prompts. Requires the `--prompt-key` argument to select a specific instruction set.
+-   **Prompt Registries** (`.yaml`, `.json`): A dictionary of multiple prompts. Requires the `--prompt-key` argument to select a specific instruction set from the file.
 
-#### Ground Truth Data Structure
+### Ground Truth Data
 To enable accuracy reporting and diagnostic analysis, your ground truth CSV must adhere to the following specification:
 
 -   **Delimiter**: Semicolon (`;`).
 -   **Required Columns**:
-    -   `study_number`: Identifier matching the paper filename stem (e.g., `0400.pdf` -> `400`).
+    -   `study_number`: Identifier matching the paper filename stem (e.g., `0400.pdf` -> `400`). Leading zeros are automatically stripped for matching.
     -   `prompt_number`: Criterion identifier matching the prompt registry (e.g., `1`, `2a`).
     -   `answer`: Binary integer where `1` is **True** and `0` is **False**.
-
-*Note: If you intend to use a custom csv structure, make sure to update the `_load_ground_truth_from_path` method in `src/research_evaluation_pipeline/cli.py` accordingly.*
 
 ## Configuration
 
 ### API Credentials
 
-The pipeline utilizes the `keyring` library to securely manage API keys. Users must ensure that the appropriate API keys are stored in the system keychain using the service and account identifiers defined in the client profiles (e.g., `resources/profiles/client.toml`).
+The pipeline utilizes the `keyring` library to securely manage API keys. Users must ensure that the appropriate API keys are stored in the system keychain and the correct service and account names are provided in `src/research_evaluation_pipeline/clients/factory.py`.
 
 ### Execution Profile Reference
 
-Example execution profiles are defined in `resources/profiles/execution.toml`. Each profile controls the behavior, model selection, and strategies for the entire pipeline.
+Example execution profiles are defined in `resources/profiles/execution.toml`. Profiles control model selection, temperatures, and strategies for every step of the pipeline.
 
 #### 1. General Step Settings
 All atomic steps (e.g., Refinement, Decomposition, Synthesis) share a common foundation defined by the `StepSettings` model:
@@ -286,23 +299,20 @@ The primary entry point for the pipeline is the `rrp` command.
 
 ### Run Full Pipeline
 
-Execute the end-to-end assessment for a specific paper:
+Execute the end-to-end assessment and diagnostic for a specific paper:
 
 ```bash
 uv run rrp run-pipeline \
-    --paper-path <paper_path> \
-    --prompt-path <prompt_path> \
-    --prompt-key <prompt_key> \
-    --ground-truth-path <ground_truth_path> \
     --profile <profile_name> \
-    --client-profile <client_profile_name> \
-    --execution-profiles <execution_profiles_path> \
-    --client-profiles <client_profiles_path>
+    --paper-path <path_to_pdf> \
+    --prompt-path <path_to_prompt_file> \
+    --prompt-key <optional_key> \
+    --ground-truth-path <path_to_csv>
 ```
 
 ### Run Specific Stage
 
-Execute a single stage of the research pipeline (preprocess, assessment, diagnostic, results):
+Execute a single stage (preprocess, assessment, diagnostic, result):
 
 ```bash
 uv run rrp run-stage <stage_name> \
@@ -332,9 +342,11 @@ uv run rrp run-step <stage_name> <step_name> \
 
 The `db` command group provides utilities for managing the local artifact cache.
 
-- **Wipe database**: `uv run rrp db clear`
-- **Seed database**: `uv run rrp db seed`
-- **Capture artifacts**: `uv run rrp db capture`
+-   **Show status**: `uv run rrp db status` (Displays entry counts and stats)
+-   **Wipe database**: `uv run rrp db clear`
+-   **Clear stage**: `uv run rrp db clear-stage <stage_name>`
+-   **Seed database**: `uv run rrp db seed` (Restores convenience artifacts)
+-   **Capture artifacts**: `uv run rrp db capture` (Exports DB to convenience files)
 
 ### Convenience Scripts
 
@@ -359,11 +371,15 @@ To use these scripts, organize your data as follows:
 
 **Example Usage**:
 ```bash
-./scripts/run_pipeline.sh <profile_name> <client_profile_name> <paper_path>
+./scripts/run_pipeline.sh <profile_name> <paper_path> <prompt_path> <prompt_key> <ground_truth_path>
 ```
-*Note: If you require custom file locations outside of these conventions, use the `rrp` CLI directly.*
+*Note: Scripts default to values in `resources/` if arguments are omitted.*
 
 ## Development
+
+### Logging & Observability
+
+The pipeline uses `loguru` for high-signal logging. Every model interaction is logged with the specific model name and token usage (where available) to provide clear visibility into the hybrid execution flow.
 
 ### Running Tests
 

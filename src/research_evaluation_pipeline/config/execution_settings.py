@@ -29,7 +29,9 @@ class StepSettings(BaseModel):
     Defines the core hyperparameters and behavior for any single interaction with an AI model.
     """
 
-    model: GeminiModelName | OpenAIModelName = Field(..., description="The identifier of the LLM model to use")
+    model: GeminiModelName | OpenAIModelName = Field(
+        ..., description="The identifier of the LLM model to use"
+    )
     temperature: float = Field(0.0, description="The sampling temperature for generation")
     cache_policy: CachePolicy = Field(
         CachePolicy.USE_CACHE, description="Rules for interacting with the ArtifactStore"

@@ -48,7 +48,9 @@ class AssessmentLogic:
         Returns:
             The generated AssessmentTaskList.
         """
-        logger.info(f"Executing assessment decomposition with {self.profile.decomposition.model.value}...")
+        logger.info(
+            f"Executing assessment decomposition with {self.profile.decomposition.model.value}..."
+        )
         prompt = self.decomposition.build_prompt(refined_prompt)
         return await self.decomposition.generate(self.provider, prompt)
 

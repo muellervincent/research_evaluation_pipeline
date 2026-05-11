@@ -23,18 +23,18 @@ from research_evaluation_pipeline.config.execution_settings import (
     RefinementSettings,
     StepSettings,
 )
-from research_evaluation_pipeline.service.prompt_service import PromptService, PromptTemplate
 from research_evaluation_pipeline.core.artifact_store import ArtifactStore
 from research_evaluation_pipeline.core.enums import (
     DiagnosticPromptSource,
     FragmentationMode,
+    GeminiModelName,
     IngestionMode,
-    ModelName,
 )
-from research_evaluation_pipeline.service.artifact_key_builder import ArtifactKeyBuilder
 from research_evaluation_pipeline.core.master_orchestrator import MasterOrchestrator
-from research_evaluation_pipeline.service.paper_context_service import PaperContextService
 from research_evaluation_pipeline.core.step_executor import StepExecutor
+from research_evaluation_pipeline.service.artifact_key_builder import ArtifactKeyBuilder
+from research_evaluation_pipeline.service.paper_context_service import PaperContextService
+from research_evaluation_pipeline.service.prompt_service import PromptService, PromptTemplate
 
 
 @pytest.fixture
@@ -81,20 +81,24 @@ def pipeline_profile():
     return PipelineProfile(
         ingestion_mode=IngestionMode.MD,
         preprocess=PreprocessProfile(
-            refinement=RefinementSettings(model=ModelName.GEMINI_3_FLASH_PREVIEW),
-            extraction=StepSettings(model=ModelName.GEMINI_3_FLASH_PREVIEW),
+            refinement=RefinementSettings(model=GeminiModelName.GEMINI_3_FLASH_PREVIEW),
+            extraction=StepSettings(model=GeminiModelName.GEMINI_3_FLASH_PREVIEW),
         ),
         assessment=AssessmentProfile(
             fragmentation=FragmentationMode.PLAN,
-            decomposition=AssessmentDecompositionSettings(model=ModelName.GEMINI_3_FLASH_PREVIEW),
-            extraction=AssessmentExtractionSettings(model=ModelName.GEMINI_3_FLASH_PREVIEW),
-            synthesis=AssessmentSynthesisSettings(model=ModelName.GEMINI_3_FLASH_PREVIEW),
+            decomposition=AssessmentDecompositionSettings(
+                model=GeminiModelName.GEMINI_3_FLASH_PREVIEW
+            ),
+            extraction=AssessmentExtractionSettings(model=GeminiModelName.GEMINI_3_FLASH_PREVIEW),
+            synthesis=AssessmentSynthesisSettings(model=GeminiModelName.GEMINI_3_FLASH_PREVIEW),
         ),
         diagnostic=DiagnosticProfile(
             fragmentation=FragmentationMode.PLAN,
             prompt_source=DiagnosticPromptSource.REFINED,
-            decomposition=DiagnosticDecompositionSettings(model=ModelName.GEMINI_3_FLASH_PREVIEW),
-            analysis=DiagnosticAnalysisSettings(model=ModelName.GEMINI_3_FLASH_PREVIEW),
+            decomposition=DiagnosticDecompositionSettings(
+                model=GeminiModelName.GEMINI_3_FLASH_PREVIEW
+            ),
+            analysis=DiagnosticAnalysisSettings(model=GeminiModelName.GEMINI_3_FLASH_PREVIEW),
         ),
     )
 

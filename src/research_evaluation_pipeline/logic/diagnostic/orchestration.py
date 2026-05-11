@@ -55,7 +55,9 @@ class DiagnosticLogic:
         Returns:
             The generated DiagnosticTaskList.
         """
-        logger.info(f"Executing diagnostic decomposition with {self.profile.decomposition.model.value}...")
+        logger.info(
+            f"Executing diagnostic decomposition with {self.profile.decomposition.model.value}..."
+        )
         assessment_details_json = json.dumps(assessment_details, indent=2)
         prompt = self.decomposition.build_prompt(prompt_assessment_text, assessment_details_json)
         return await self.decomposition.generate(self.provider, prompt)

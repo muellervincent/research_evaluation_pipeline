@@ -161,10 +161,12 @@ class OpenAIProvider(ModelProvider):
 
         if paper_context:
             if paper_context.raw_text:
-                user_content.append({
-                    "type": "text",
-                    "text": f"RESEARCH PAPER MARKDOWN:\n\n{paper_context.raw_text}",
-                })
+                user_content.append(
+                    {
+                        "type": "text",
+                        "text": f"RESEARCH PAPER MARKDOWN:\n\n{paper_context.raw_text}",
+                    }
+                )
             elif paper_context.raw_bytes:
                 file_id = paper_context.uploaded_file_ids.get("openai")
                 if file_id:
@@ -175,25 +177,29 @@ class OpenAIProvider(ModelProvider):
                         f"Injecting PDF bytes for {paper_context.paper_stem} into OpenAI request."
                     )
                     b64_pdf = base64.b64encode(paper_context.raw_bytes).decode("utf-8")
-                    user_content.append({
-                        "type": "input_file",
-                        "input_file": {
-                            "filename": f"{paper_context.paper_stem}.pdf",
-                            "file_data": f"data:application/pdf;base64,{b64_pdf}",
-                        },
-                    })
+                    user_content.append(
+                        {
+                            "type": "input_file",
+                            "input_file": {
+                                "filename": f"{paper_context.paper_stem}.pdf",
+                                "file_data": f"data:application/pdf;base64,{b64_pdf}",
+                            },
+                        }
+                    )
 
         if file_references:
             for reference in file_references:
                 if isinstance(reference, bytes):
                     b64_ref = base64.b64encode(reference).decode("utf-8")
-                    user_content.append({
-                        "type": "input_file",
-                        "input_file": {
-                            "filename": "reference.pdf",
-                            "file_data": f"data:application/pdf;base64,{b64_ref}",
-                        },
-                    })
+                    user_content.append(
+                        {
+                            "type": "input_file",
+                            "input_file": {
+                                "filename": "reference.pdf",
+                                "file_data": f"data:application/pdf;base64,{b64_ref}",
+                            },
+                        }
+                    )
                 elif isinstance(reference, str):
                     user_content.append({"type": "text", "text": reference})
 

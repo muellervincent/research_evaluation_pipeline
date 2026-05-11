@@ -96,9 +96,7 @@ class PipelineRunner:
         """
         master_prompt_key = self.generate_prompt_key(master_prompt)
 
-        orchestrator = self.setup_orchestrator(
-            profile, paper_stem, master_prompt_key
-        )
+        orchestrator = self.setup_orchestrator(profile, paper_stem, master_prompt_key)
 
         paper_context = None
         try:
@@ -133,9 +131,7 @@ class PipelineRunner:
         """
         master_prompt_key = self.generate_prompt_key(master_prompt)
 
-        orchestrator = self.setup_orchestrator(
-            profile, paper_stem, master_prompt_key
-        )
+        orchestrator = self.setup_orchestrator(profile, paper_stem, master_prompt_key)
 
         paper_context = None
         try:
@@ -178,9 +174,7 @@ class PipelineRunner:
         """
         master_prompt_key = self.generate_prompt_key(master_prompt)
 
-        orchestrator = self.setup_orchestrator(
-            profile, paper_stem, master_prompt_key
-        )
+        orchestrator = self.setup_orchestrator(profile, paper_stem, master_prompt_key)
 
         paper_context = None
         try:

@@ -350,8 +350,7 @@ class GeminiProvider(ModelProvider):
 
         file_io = BytesIO(file_bytes)
         uploaded_file = await self.client.aio.files.upload(
-            file=file_io,
-            config=types.UploadFileConfig(display_name=filename, mime_type=mime_type),
+            file=file_io, config=types.UploadFileConfig(display_name=filename, mime_type=mime_type)
         )
         logger.info(f"Uploaded file to Gemini: {uploaded_file.name} (Mime-Type: {mime_type})")
         return uploaded_file.name
